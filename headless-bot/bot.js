@@ -181,7 +181,10 @@ async function startBot() {
             knownCharacters.add(sender);
         }
 
-        console.log(`💬 [Member #${sender}]: "${content}"`);
+        const isInternalAddon = /^(ECHO_|PCM_|CG_|BCEMsg|BCXMsg|KIKILINK|Liko)/.test(content);
+        if (!isInternalAddon) {
+            console.log(`💬 [Member #${sender}]: "${content}"`);
+        }
         if (!content.startsWith("!")) return;
 
         handleRoomCommand(socket, content, sender);
