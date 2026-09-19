@@ -167,58 +167,76 @@ async function startBot() {
 
     // Beep / Invite Listener: If owner (#245253) sends "join here" or room invite, bot navigates to that room
     socket.on("AccountBeep", (data) => {
-        // Ignore automated background addon beeps (e.g., GGC_BEEP, BCX pings, or addon object messages)
-        if ((data.BeepType && /^(GGC|BCX|PCM|CG)/i.test(data.BeepType)) || typeof data.Message === "object") {
-            return;
-        }
+        if (!data || typeof data !== "object") return;
+
+        console.log(`\n📩 Incoming Beep from Member #${data.MemberNumber} (${data.MemberName || 'Unknown'}):`);
+        console.log(`   Packet:`, JSON.stringify(data));
 
         const senderId = Number(data.MemberNumber);
         const senderName = data.MemberName || "Unknown";
-        const msg = typeof data.Message === "string" ? data.Message.trim() : "";
-        const space = data.ChatRoomSpace || "";
-        
-        console.log(`\n📩 Received Beep from: ${senderName} (#${senderId}) | Message: "${msg}"`);
-
         const isMaster = (senderId === 245253);
+
+        // Convert message to string whether it's a plain string or an object from an addon (GGC/BCX)
+        let msg = "";
+        if (typeof data.Message === "string") {
+            msg = data.Message.trim();
+        } else if (data.Message && typeof data.Message === "object") {
+            const rawMsgJson = JSON.stringify(data.Message);
+            // Ignore pure addon background heartbeat/ping without user text
+            if (rawMsgJson.includes("GGC_BEEP_PING") && !rawMsgJson.toLowerCase().includes("join")) {
+                console.log(`   ℹ️ [Filter] Ignored background GGC ping.`);
+                return;
+            }
+            msg = data.Message.text || data.Message.message || data.Message.Content || rawMsgJson;
+            if (typeof msg === "object") msg = JSON.stringify(msg);
+        }
+
+        // Ignore pure addon background pings with no user command
+        if (data.BeepType === "GGC_BEEP" && msg.includes("GGC_BEEP_PING") && !msg.toLowerCase().includes("join")) {
+            return;
+        }
+
+        const space = data.ChatRoomSpace || "";
+        const isJoinHere = /(?:join\s+here|join\s+sini|masuk\s+sini)/i.test(msg);
         const joinMatch = msg.match(/(?:join\s+here|join\s+sini|masuk\s+sini)(?:\s*[:\-]?\s*(.+))?/i);
 
         let targetRoomToJoin = null;
 
-        // ONLY Member #245253 with explicit "join here" command can move the bot
-        if (isMaster && joinMatch) {
-            // Check if room name is explicitly written in the message, e.g. "join here Room Name"
-            if (joinMatch[1] && joinMatch[1].trim()) {
-                targetRoomToJoin = joinMatch[1].trim().replace(/^["'(\[]+|["')\]]+$/g, '');
-            } else if (data.ChatRoomName) {
+        if (isMaster && isJoinHere) {
+            if (joinMatch && joinMatch[1] && joinMatch[1].trim()) {
+                const roomNameCandidate = joinMatch[1].trim().replace(/^["'(\[]+|["')\]]+$/g, '');
+                if (roomNameCandidate && !roomNameCandidate.includes("{") && !roomNameCandidate.includes("}")) {
+                    targetRoomToJoin = roomNameCandidate;
+                }
+            }
+            if (!targetRoomToJoin && data.ChatRoomName) {
                 targetRoomToJoin = data.ChatRoomName;
-            } else if (CONFIG.targetRoom) {
-                targetRoomToJoin = CONFIG.targetRoom;
             }
 
             if (targetRoomToJoin) {
-                console.log(`🎯 [Master Command] Member #245253 ordered bot to join "${targetRoomToJoin}" via beep!`);
+                console.log(`🎯 [Master Command] Member #245253 ordered bot to join "${targetRoomToJoin}" (Space: "${space || 'Default'}")!`);
                 try {
                     socket.emit("AccountBeep", {
                         MemberNumber: senderId,
-                        Message: `Understood! Joining room "${targetRoomToJoin}" now 🎵`
+                        Message: `Understood! Joining "${targetRoomToJoin}" now 🎵`
                     });
                 } catch (err) {
                     console.warn("Failed to send reply beep:", err.message);
                 }
                 switchRoom(socket, targetRoomToJoin, space);
             } else {
-                console.warn(`⚠️ Received "join here" from #${senderId}, but no room name or room invite was detected.`);
+                console.warn(`⚠️ Received "join here" from #${senderId}, but room name could not be identified.`);
                 try {
                     socket.emit("AccountBeep", {
                         MemberNumber: senderId,
-                        Message: `Received "join here", but room name is missing. Please send room invite or type: "join here <RoomName>"`
+                        Message: `Received "join here", but room name is missing. Please send a room invite beep or specify: "join here <RoomName>"`
                     });
                 } catch (err) {}
             }
             return;
         }
 
-        // Native game room invite (BeepType: ChatRoomInvite) from master #245253
+        // Native in-game Room Invite
         if (isMaster && data.BeepType === "ChatRoomInvite" && data.ChatRoomName) {
             targetRoomToJoin = data.ChatRoomName;
             console.log(`🚪 Native room invite to "${targetRoomToJoin}" received from Member #${senderId}! Navigating bot...`);
