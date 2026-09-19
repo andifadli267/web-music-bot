@@ -577,15 +577,35 @@ function handleRoomCommand(socket, text, sender) {
                 `* 📻 Pilihan Genre Radio: lofi, synth, chillsynth, pop, dance, rock, hiphop, jazz`
             );
         }, 1200);
-    } else if (cmd === "!yt" || (cmd === "!play" && (text.includes("youtube.com") || text.includes("youtu.be")))) {
-        const query = (cmd === "!yt") ? parts.slice(1).join(" ") : parts[1];
-        if (!query) {
+    } else if (cmd === "!yt" || cmd === "!play") {
+        // Ekstrak URL jika ada di dalam teks pesan (membersihkan tanda kurung atau simbol di sekitarnya)
+        const urlMatch = text.match(/https?:\/\/[^\s\)\>\]]+/i);
+        let extractedUrl = urlMatch ? urlMatch[0].replace(/[\)\>\]\.\,\'\"\`]+$/, "") : null;
+
+        // Ambil teks setelah kata perintah
+        const rawAfterCmd = text.slice(text.indexOf(parts[0]) + parts[0].length).trim();
+        const cleanQuery = rawAfterCmd.replace(/^[\(\[\<\"\']+|[\)\]\>\"\']+$/g, "").trim();
+
+        // Cek apakah query merupakan link direct MP3/MP4 atau link YouTube / pencarian lagu
+        const isDirectAudio = extractedUrl && (extractedUrl.toLowerCase().includes(".mp3") || extractedUrl.toLowerCase().includes(".mp4"));
+        const isYoutube = (extractedUrl && (extractedUrl.includes("youtube.com") || extractedUrl.includes("youtu.be"))) || cmd === "!yt" || (!isDirectAudio && cleanQuery.length > 0);
+
+        if (!cleanQuery && !extractedUrl) {
             sendRoomEmote(
                 socket,
-                `* ⚠️ [DJ ${myName}] Masukkan link YouTube atau judul lagu! Contoh: !yt https://youtu.be/... atau !yt judika putus`
+                `* ⚠️ [DJ ${myName}] Masukkan link YouTube, judul lagu, atau URL .mp3! Contoh: !yt https://youtu.be/... atau !yt armada pergi pagi`
             );
             return;
         }
+
+        // Jika link adalah direct MP3/MP4, langsung setel ke room
+        if (isDirectAudio && cmd === "!play") {
+            setRoomMusic(socket, extractedUrl, `Lagu (${path.basename(new URL(extractedUrl).pathname)})`);
+            return;
+        }
+
+        // Jika YouTube link atau judul pencarian lagu
+        const targetSong = extractedUrl || cleanQuery;
 
         if (isConverting) {
             sendRoomEmote(
@@ -602,7 +622,7 @@ function handleRoomCommand(socket, text, sender) {
             `* ⏳ [DJ ${myName}] Sedang mengonversi audio YouTube ke MP3 room... Mohon tunggu beberapa detik! 🎧`
         );
 
-        convertYoutubeToMp3(query)
+        convertYoutubeToMp3(targetSong)
             .then(({ title, directUrl }) => {
                 isConverting = false;
                 setRoomMusic(socket, directUrl, `YouTube: ${title}`);
@@ -613,7 +633,7 @@ function handleRoomCommand(socket, text, sender) {
                 console.error("[YouTube Conversion Error]", err);
                 sendRoomEmote(
                     socket,
-                    `* ⚠️ [DJ ${myName}] Gagal mengonversi lagu YouTube tersebut. Pastikan durasi wajar (<15 menit) dan link dapat diakses!`
+                    `* ⚠️ [DJ ${myName}] Gagal mengonversi lagu YouTube tersebut. Pastikan link dapat diakses!`
                 );
             });
     } else if (cmd === "!radio") {
@@ -627,16 +647,6 @@ function handleRoomCommand(socket, text, sender) {
                 `* ⚠️ [DJ ${myName}] Genre tersedia: lofi, synth, chillsynth, pop, dance, rock, hiphop, jazz. Contoh: !radio synth`
             );
         }
-    } else if (cmd === "!play") {
-        const url = parts[1];
-        if (!url) {
-            sendRoomEmote(
-                socket,
-                `* ⚠️ [DJ ${myName}] Masukkan link audio .mp3! Contoh: !play https://contoh.com/lagu.mp3`
-            );
-            return;
-        }
-        setRoomMusic(socket, url, `Lagu Request (${url})`);
     } else if (cmd === "!stop") {
         setRoomMusic(socket, "", "");
     } else if (cmd === "!np") {
