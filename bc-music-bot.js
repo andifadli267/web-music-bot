@@ -1,9 +1,16 @@
 // ==UserScript==
 // @name         Bondage Club - Music Bot & Character DJ
 // @namespace    https://github.com/BondageProjects/Bondage-College
-// @version      1.1.0
+// @version      1.1.1
 // @description  Interactive In-Game Music DJ Character Bot, 24/7 Radio & YouTube Audio Player for Bondage Club (R132+) & BC-Desktop
 // @author       Antigravity
+// @match        https://*.bondageprojects.elementfx.com/R*/*
+// @match        https://*.bondage-europe.com/R*/*
+// @match        https://*.bondageeurope.com/R*/*
+// @match        https://*.bondageprojects.com/R*/*
+// @match        https://*.bondage-asia.com/club/R*
+// @match        https://*.bondage-asia.com/club/R*/*
+// @match        http://localhost:*/*
 // @include      /^https:\/\/(www\.)?bondage(projects\.elementfx|-(europe|asia))\.com\/.*/
 // @grant        none
 // @run-at       document-end
