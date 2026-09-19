@@ -9,6 +9,10 @@
  */
 
 const { io } = require("socket.io-client");
+const { execFile } = require("child_process");
+const path = require("path");
+const fs = require("fs");
+const ffmpegPath = require("ffmpeg-static");
 require("dotenv").config();
 
 function resolveServerUrl(url) {
@@ -319,6 +323,80 @@ function changeFaceExpression(socket, group, expression) {
     });
 }
 
+let isConverting = false;
+
+function convertYoutubeToMp3(queryOrUrl) {
+    return new Promise((resolve, reject) => {
+        const tempDir = path.join(__dirname, "temp");
+        if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+
+        const fileId = "yt_" + Date.now();
+        const outputPath = path.join(tempDir, `${fileId}.%(ext)s`);
+        const finalMp3Path = path.join(tempDir, `${fileId}.mp3`);
+
+        const target = (queryOrUrl.startsWith("http://") || queryOrUrl.startsWith("https://")) 
+            ? queryOrUrl 
+            : `ytsearch1:${queryOrUrl}`;
+
+        const args = [
+            "-m", "yt_dlp",
+            "--ffmpeg-location", ffmpegPath,
+            "-x", "--audio-format", "mp3",
+            "--audio-quality", "5",
+            "--max-filesize", "25M",
+            "--no-playlist",
+            "-o", outputPath,
+            target
+        ];
+
+        console.log(`[YouTube] Mengonversi "${queryOrUrl}" ke MP3...`);
+        execFile("python", args, { timeout: 75000 }, async (err, stdout, stderr) => {
+            if (err) {
+                console.error("[YouTube Error]:", err.message);
+                return reject(err);
+            }
+
+            if (!fs.existsSync(finalMp3Path)) {
+                return reject(new Error("File MP3 tidak ditemukan setelah konversi."));
+            }
+
+            let title = queryOrUrl;
+            const titleMatch = stdout.match(/Destination:\s*(.+)/);
+            if (titleMatch) {
+                title = path.basename(titleMatch[1], path.extname(titleMatch[1]));
+            }
+
+            try {
+                console.log(`[YouTube] Mengunggah file ke CDN tmpfiles...`);
+                const fileBuffer = fs.readFileSync(finalMp3Path);
+                const safeFileName = fileId + ".mp3";
+                const blob = new Blob([fileBuffer], { type: "audio/mpeg" });
+                const form = new FormData();
+                form.append("file", blob, safeFileName);
+
+                const res = await fetch("https://tmpfiles.org/api/v1/upload", {
+                    method: "POST",
+                    body: form,
+                });
+                const data = await res.json();
+
+                try { fs.unlinkSync(finalMp3Path); } catch(_) {}
+
+                if (data && data.data && data.data.url) {
+                    const directUrl = data.data.url.replace("tmpfiles.org/", "tmpfiles.org/dl/");
+                    console.log(`[YouTube] Berhasil! Direct MP3 URL: ${directUrl}`);
+                    resolve({ title, directUrl });
+                } else {
+                    reject(new Error("Gagal mengunggah file ke CDN tmpfiles."));
+                }
+            } catch(uploadErr) {
+                try { fs.unlinkSync(finalMp3Path); } catch(_) {}
+                reject(uploadErr);
+            }
+        });
+    });
+}
+
 function handleRoomCommand(socket, text, sender) {
     const parts = text.split(/\s+/);
     const cmd = parts[0].toLowerCase();
@@ -328,7 +406,7 @@ function handleRoomCommand(socket, text, sender) {
         changeFaceExpression(socket, "Eyes", "Wink");
         sendRoomEmote(
             socket,
-            `* 🎵 [DJ ${myName}]: Karakter mandiri yang memutar lagu room untuk semua orang! Perintah: !radio <genre> | !play <url-mp3> | !stop | !np | !dance | !sing | !admin`
+            `* 🎵 [DJ ${myName}]: Karakter mandiri yang memutar lagu room untuk semua orang! Perintah: !yt <link/judul> | !radio <genre> | !play <url-mp3> | !stop | !np | !dance | !sing | !admin`
         );
         setTimeout(() => {
             sendRoomEmote(
@@ -336,6 +414,45 @@ function handleRoomCommand(socket, text, sender) {
                 `* 📻 Pilihan Genre Radio: lofi, synth, chillsynth, pop, dance, rock, hiphop, jazz`
             );
         }, 1200);
+    } else if (cmd === "!yt" || (cmd === "!play" && (text.includes("youtube.com") || text.includes("youtu.be")))) {
+        const query = (cmd === "!yt") ? parts.slice(1).join(" ") : parts[1];
+        if (!query) {
+            sendRoomEmote(
+                socket,
+                `* ⚠️ [DJ ${myName}] Masukkan link YouTube atau judul lagu! Contoh: !yt https://youtu.be/... atau !yt judika putus`
+            );
+            return;
+        }
+
+        if (isConverting) {
+            sendRoomEmote(
+                socket,
+                `* ⏳ [DJ ${myName}] Sedang ada lagu yang diproses. Mohon tunggu sebentar ya!`
+            );
+            return;
+        }
+
+        isConverting = true;
+        changeFaceExpression(socket, "Eyes", "Thinking");
+        sendRoomEmote(
+            socket,
+            `* ⏳ [DJ ${myName}] Sedang mengonversi audio YouTube ke MP3 room... Mohon tunggu beberapa detik! 🎧`
+        );
+
+        convertYoutubeToMp3(query)
+            .then(({ title, directUrl }) => {
+                isConverting = false;
+                setRoomMusic(socket, directUrl, `YouTube: ${title}`);
+            })
+            .catch((err) => {
+                isConverting = false;
+                changeFaceExpression(socket, "Eyes", "Sad");
+                console.error("[YouTube Conversion Error]", err);
+                sendRoomEmote(
+                    socket,
+                    `* ⚠️ [DJ ${myName}] Gagal mengonversi lagu YouTube tersebut. Pastikan durasi wajar (<15 menit) dan link dapat diakses!`
+                );
+            });
     } else if (cmd === "!radio") {
         const key = (parts[1] || "").toLowerCase();
         if (STATIONS[key]) {

@@ -39,6 +39,7 @@ Bot karakter mandiri (avatar akun tersendiri) untuk **Bondage Club (R132+)** ([h
 | Perintah | Contoh | Efek Musik & Karakter |
 | :--- | :--- | :--- |
 | `!help` / `!music` | `!help` | Menampilkan panduan dan daftar stasiun radio |
+| `!yt <link/judul>` | `!yt https://youtu.be/...` | **Otomatis konversi video YouTube ke MP3** & diputar ke seluruh room! 🎶 |
 | `!radio <genre>` | `!radio synth` | Mengganti musik room untuk **semua orang** |
 | `!play <url.mp3>` | `!play https://.../lagu.mp3` | Memutar link MP3 kustom untuk seluruh room |
 | `!stop` | `!stop` | Menghentikan musik room untuk semua orang |
