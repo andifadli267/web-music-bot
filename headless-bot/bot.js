@@ -167,22 +167,24 @@ async function startBot() {
 
     // Beep / Invite Listener: If owner (#245253) sends "join here" or room invite, bot navigates to that room
     socket.on("AccountBeep", (data) => {
-        if (!data || typeof data !== "object") return;
-        
+        // Ignore automated background addon beeps (e.g., GGC_BEEP, BCX pings, or addon object messages)
+        if ((data.BeepType && /^(GGC|BCX|PCM|CG)/i.test(data.BeepType)) || typeof data.Message === "object") {
+            return;
+        }
+
         const senderId = Number(data.MemberNumber);
         const senderName = data.MemberName || "Unknown";
         const msg = typeof data.Message === "string" ? data.Message.trim() : "";
         const space = data.ChatRoomSpace || "";
         
-        console.log(`\n📩 Received Beep from: ${senderName} (#${senderId})`);
-        console.log(`📩 Beep details:`, JSON.stringify(data));
+        console.log(`\n📩 Received Beep from: ${senderName} (#${senderId}) | Message: "${msg}"`);
 
         const isMaster = (senderId === 245253);
         const joinMatch = msg.match(/(?:join\s+here|join\s+sini|masuk\s+sini)(?:\s*[:\-]?\s*(.+))?/i);
 
         let targetRoomToJoin = null;
 
-        // Condition 1: Master #245253 sends "join here" command
+        // ONLY Member #245253 with explicit "join here" command can move the bot
         if (isMaster && joinMatch) {
             // Check if room name is explicitly written in the message, e.g. "join here Room Name"
             if (joinMatch[1] && joinMatch[1].trim()) {
@@ -209,28 +211,24 @@ async function startBot() {
                 try {
                     socket.emit("AccountBeep", {
                         MemberNumber: senderId,
-                        Message: `Received "join here", but room name is missing. Please send a room invite beep or type: "join here <RoomName>"`
+                        Message: `Received "join here", but room name is missing. Please send room invite or type: "join here <RoomName>"`
                     });
                 } catch (err) {}
             }
             return;
         }
 
-        // Condition 2: Master #245253 or room invite with ChatRoomName provided
-        if (data.ChatRoomName) {
-            if (isMaster || (currentRoomData && Array.isArray(currentRoomData.Admin) && currentRoomData.Admin.includes(senderId))) {
-                targetRoomToJoin = data.ChatRoomName;
-                console.log(`🚪 Beep invited to room: "${targetRoomToJoin}" by authorized member #${senderId}! Navigating bot...`);
-                try {
-                    socket.emit("AccountBeep", {
-                        MemberNumber: senderId,
-                        Message: `Joining room "${targetRoomToJoin}"...`
-                    });
-                } catch (err) {}
-                switchRoom(socket, targetRoomToJoin, space);
-            } else {
-                console.log(`ℹ️ Received room invite to "${data.ChatRoomName}" from non-admin #${senderId}. Ignored.`);
-            }
+        // Native game room invite (BeepType: ChatRoomInvite) from master #245253
+        if (isMaster && data.BeepType === "ChatRoomInvite" && data.ChatRoomName) {
+            targetRoomToJoin = data.ChatRoomName;
+            console.log(`🚪 Native room invite to "${targetRoomToJoin}" received from Member #${senderId}! Navigating bot...`);
+            try {
+                socket.emit("AccountBeep", {
+                    MemberNumber: senderId,
+                    Message: `Joining room "${targetRoomToJoin}"...`
+                });
+            } catch (err) {}
+            switchRoom(socket, targetRoomToJoin, space);
         }
     });
 
