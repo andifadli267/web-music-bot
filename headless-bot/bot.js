@@ -165,14 +165,72 @@ async function startBot() {
         }
     });
 
-    // Beep / Invite Listener: If owner sends a beep to the bot from inside the room, bot joins immediately
+    // Beep / Invite Listener: If owner (#245253) sends "join here" or room invite, bot navigates to that room
     socket.on("AccountBeep", (data) => {
         if (!data || typeof data !== "object") return;
-        console.log(`\n📩 Received Beep from: ${data.MemberName} (#${data.MemberNumber})`);
+        
+        const senderId = Number(data.MemberNumber);
+        const senderName = data.MemberName || "Unknown";
+        const msg = typeof data.Message === "string" ? data.Message.trim() : "";
+        const space = data.ChatRoomSpace || "";
+        
+        console.log(`\n📩 Received Beep from: ${senderName} (#${senderId})`);
+        console.log(`📩 Beep details:`, JSON.stringify(data));
+
+        const isMaster = (senderId === 245253);
+        const joinMatch = msg.match(/(?:join\s+here|join\s+sini|masuk\s+sini)(?:\s*[:\-]?\s*(.+))?/i);
+
+        let targetRoomToJoin = null;
+
+        // Condition 1: Master #245253 sends "join here" command
+        if (isMaster && joinMatch) {
+            // Check if room name is explicitly written in the message, e.g. "join here Room Name"
+            if (joinMatch[1] && joinMatch[1].trim()) {
+                targetRoomToJoin = joinMatch[1].trim().replace(/^["'(\[]+|["')\]]+$/g, '');
+            } else if (data.ChatRoomName) {
+                targetRoomToJoin = data.ChatRoomName;
+            } else if (CONFIG.targetRoom) {
+                targetRoomToJoin = CONFIG.targetRoom;
+            }
+
+            if (targetRoomToJoin) {
+                console.log(`🎯 [Master Command] Member #245253 ordered bot to join "${targetRoomToJoin}" via beep!`);
+                try {
+                    socket.emit("AccountBeep", {
+                        MemberNumber: senderId,
+                        Message: `Understood! Joining room "${targetRoomToJoin}" now 🎵`
+                    });
+                } catch (err) {
+                    console.warn("Failed to send reply beep:", err.message);
+                }
+                switchRoom(socket, targetRoomToJoin, space);
+            } else {
+                console.warn(`⚠️ Received "join here" from #${senderId}, but no room name or room invite was detected.`);
+                try {
+                    socket.emit("AccountBeep", {
+                        MemberNumber: senderId,
+                        Message: `Received "join here", but room name is missing. Please send a room invite beep or type: "join here <RoomName>"`
+                    });
+                } catch (err) {}
+            }
+            return;
+        }
+
+        // Condition 2: Master #245253 or room invite with ChatRoomName provided
         if (data.ChatRoomName) {
-            console.log(`🚪 Beep invited to room: "${data.ChatRoomName}"! Navigating bot...`);
-            CONFIG.targetRoom = data.ChatRoomName;
-            joinTargetRoom(socket);
+            if (isMaster || (currentRoomData && Array.isArray(currentRoomData.Admin) && currentRoomData.Admin.includes(senderId))) {
+                targetRoomToJoin = data.ChatRoomName;
+                console.log(`🚪 Beep invited to room: "${targetRoomToJoin}" by authorized member #${senderId}! Navigating bot...`);
+                try {
+                    socket.emit("AccountBeep", {
+                        MemberNumber: senderId,
+                        Message: `Joining room "${targetRoomToJoin}"...`
+                    });
+                } catch (err) {}
+                switchRoom(socket, targetRoomToJoin, space);
+            } else {
+                console.log(`ℹ️ Received room invite to "${data.ChatRoomName}" from non-admin #${senderId}. Ignored.`);
+            }
         }
     });
 
@@ -292,10 +350,46 @@ function scheduleRetryJoin(socket, delayMs) {
     }, delayMs);
 }
 
-function joinTargetRoom(socket) {
-    socket.emit("ChatRoomJoin", {
-        Name: CONFIG.targetRoom,
-    });
+function joinTargetRoom(socket, roomName = CONFIG.targetRoom, space = "") {
+    const packet = { Name: roomName };
+    if (space) packet.Space = space;
+    socket.emit("ChatRoomJoin", packet);
+}
+
+function switchRoom(socket, roomName, space = "") {
+    if (!roomName) return;
+    CONFIG.targetRoom = roomName;
+
+    if (isInRoom) {
+        if (currentRoomData && currentRoomData.Name && currentRoomData.Name.toLowerCase() === roomName.toLowerCase()) {
+            console.log(`📍 Bot is already inside room "${roomName}".`);
+            sendRoomEmote(
+                socket,
+                `* 🎵 [DJ ${botPlayer ? botPlayer.Name : CONFIG.accountName}] I am already here in ${roomName}! Ready for music requests 🎧`
+            );
+            return;
+        }
+
+        console.log(`🚪 Leaving current room "${currentRoomData?.Name || 'Unknown'}" to join "${roomName}"...`);
+        try {
+            socket.emit("ChatRoomLeave", "");
+        } catch (e) {
+            console.error("Error leaving room:", e);
+        }
+        isInRoom = false;
+        currentRoomData = null;
+        songQueue = [];
+        currentTrack = null;
+        stopVibeAnimation();
+
+        setTimeout(() => {
+            console.log(`🚪 Joining new room: "${roomName}"...`);
+            joinTargetRoom(socket, roomName, space);
+        }, 600);
+    } else {
+        console.log(`🚪 Joining room: "${roomName}"...`);
+        joinTargetRoom(socket, roomName, space);
+    }
 }
 
 function isBotAdmin() {
