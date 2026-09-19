@@ -54,7 +54,7 @@ async function startBot() {
     console.log("🤖 Bondage Club - Standalone Music DJ Character Bot");
     console.log("   Memutar musik room resmi agar terdengar oleh SEMUA ORANG");
     console.log("==========================================================");
-    console.log(`📡 Server Game    : ${CONFIG.serverUrl}`);
+    console.log(`🌐 Website Login  : ${CONFIG.webUrl}`);
     console.log(`👤 Akun Karakter  : ${CONFIG.accountName}`);
     console.log(`🚪 Target Ruangan : "${CONFIG.targetRoom}" (Private Room)`);
     console.log("----------------------------------------------------------");
@@ -64,6 +64,11 @@ async function startBot() {
         reconnection: true,
         reconnectionAttempts: 50,
         reconnectionDelay: 3000,
+        extraHeaders: {
+            Origin: "https://www.bondage-asia.com",
+            Referer: "https://www.bondage-asia.com/club/R132/",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        },
     });
 
     socket.on("connect", () => {
