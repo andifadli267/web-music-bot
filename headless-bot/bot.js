@@ -173,6 +173,21 @@ async function startBot() {
         startVibeAnimation(socket);
     });
 
+    socket.on("ChatRoomUpdateResponse", (res) => {
+        if (res === "Updated") {
+            console.log("✅ [Server] Perubahan room administration (Musik/Pengaturan) BERHASIL DITERIMA oleh server game!");
+        } else {
+            console.warn("⚠️ [Server] Update room respon:", res);
+        }
+    });
+
+    socket.on("ChatRoomSyncRoomProperties", (data) => {
+        if (data && currentRoomData) {
+            Object.assign(currentRoomData, data);
+            console.log(`🔄 [Room Sync] Data room disinkronisasi ke semua pemain! MusicURL: "${data.Custom?.MusicURL || 'Kosong'}"`);
+        }
+    });
+
     socket.on("ChatRoomMessage", (data) => {
         if (!data || !data.Content || typeof data.Content !== "string") return;
 
@@ -288,7 +303,7 @@ function setRoomMusic(socket, musicUrl, title = "") {
 
     console.log(`📻 [Room Music Broadcast] Memperbarui MusicURL room ke: "${musicUrl}"`);
     socket.emit("ChatRoomAdmin", {
-        MemberNumber: myId,
+        MemberNumber: 0,
         Room: updatedRoom,
         Action: "Update",
     });
@@ -684,7 +699,7 @@ function handleRoomCommand(socket, text, sender) {
         if (sender && Array.isArray(currentRoomData.Admin) && !currentRoomData.Admin.includes(sender)) {
             currentRoomData.Admin.push(sender);
             socket.emit("ChatRoomAdmin", {
-                MemberNumber: botPlayer.MemberNumber,
+                MemberNumber: 0,
                 Room: currentRoomData,
                 Action: "Update",
             });
