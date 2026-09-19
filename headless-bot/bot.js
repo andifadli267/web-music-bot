@@ -442,12 +442,17 @@ function setRoomMusic(socket, musicUrl, title = "", duration = 0, trackInfo = nu
         MapData: currentRoomData.MapData || { Type: "Never" },
         Custom: {
             ...(currentRoomData.Custom || {}),
-            MusicURL: musicUrl ? musicUrl : undefined,
-            MusicStart: musicUrl ? Date.now() : undefined,
+            MusicURL: musicUrl ? musicUrl : "",
+            MusicStart: musicUrl ? Date.now() : 0,
         },
     };
 
-    console.log(`📻 [Room Music Broadcast] Updating room MusicURL to: "${musicUrl}"`);
+    if (currentRoomData.Custom) {
+        currentRoomData.Custom.MusicURL = musicUrl ? musicUrl : "";
+        currentRoomData.Custom.MusicStart = musicUrl ? Date.now() : 0;
+    }
+
+    console.log(`📻 [Room Music Broadcast] Updating room MusicURL to: "${musicUrl || ''}" (Empty: ${!musicUrl})`);
     socket.emit("ChatRoomAdmin", {
         MemberNumber: 0,
         Room: updatedRoom,
@@ -484,10 +489,13 @@ function setRoomMusic(socket, musicUrl, title = "", duration = 0, trackInfo = nu
         }
     } else {
         currentTrack = null;
-        sendRoomEmote(
-            socket,
-            `* 🔇 [DJ ${myName}] Room music has been stopped for all players.`
-        );
+        currentStation = null;
+        if (title !== "SILENT_STOP") {
+            sendRoomEmote(
+                socket,
+                `* 🔇 [DJ ${myName}] Room music has been stopped for all players.`
+            );
+        }
     }
 }
 
@@ -512,10 +520,12 @@ function playNextInQueue(socket) {
         );
     } else {
         currentTrack = null;
-        console.log(`[Queue] Queue is now empty.`);
+        currentStation = null;
+        console.log(`[Queue] All tracks finished and queue is empty. Clearing room Custom.MusicURL so audio does not repeat.`);
+        setRoomMusic(socket, "", "SILENT_STOP");
         sendRoomEmote(
             socket,
-            `* 🎵 [DJ ${myName}] The song queue is now empty. Feel free to request songs with !play <title or link> 🎧`
+            `* 🎵 [DJ ${myName}] Song finished and queue is empty. Room music stopped. Feel free to request songs with !play <title or link> 🎧`
         );
     }
 }
