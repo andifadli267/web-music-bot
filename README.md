@@ -39,12 +39,11 @@ Bot karakter mandiri (avatar akun tersendiri) untuk **Bondage Club (R132+)** ([h
 | Command | Example | Description |
 | :--- | :--- | :--- |
 | `!help` / `!music` | `!help` | Displays command list and available radio stations |
-| `!yt <link/title>` | `!yt https://youtu.be/...` | Converts YouTube track to MP3, uploads to `tmpfile.link`, and plays or queues it |
+| `!play <title/link>` | `!play linkin park numb` | Plays or queues song (YouTube link, song title/search, or direct .mp3 URL). Alias: `!yt` |
 | `!queue` / `!q` | `!queue` | Displays currently playing track and upcoming songs (up to 10 in queue) |
 | `!skip` / `!next` | `!skip` | Skips current song and immediately plays next track in queue |
 | `!clear` | `!clear` | Clears all upcoming songs from queue |
 | `!radio <genre>` | `!radio synth` | Switches to 24/7 radio stream (e.g. lofi, synth, pop, rock, jazz) |
-| `!play <url.mp3>` | `!play https://.../song.mp3` | Plays custom MP3 audio or adds it to queue |
 | `!stop` | `!stop` | Stops room music and clears queue |
 | `!np` | `!np` | Announces current song or radio station |
 | `!whitelist <id>` | `!whitelist 254143` | **Room Admin only**: Adds a player to the private room Whitelist |

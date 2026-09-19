@@ -222,7 +222,7 @@ async function startBot() {
             setTimeout(() => {
                 sendRoomEmote(
                     socket,
-                    `* 👋 [DJ ${botPlayer.Name || CONFIG.accountName}] Welcome to the room, ${newChar.Name || 'friend'}! Feel free to request music using !yt <song or youtube url> 🎶`
+                    `* 👋 [DJ ${botPlayer.Name || CONFIG.accountName}] Welcome to the room, ${newChar.Name || 'friend'}! Feel free to request music using !play <song or youtube url> 🎶`
                 );
             }, 2000);
         }
@@ -421,7 +421,7 @@ function playNextInQueue(socket) {
         console.log(`[Queue] Queue is now empty.`);
         sendRoomEmote(
             socket,
-            `* 🎵 [DJ ${myName}] The song queue is now empty. Feel free to request songs with !yt <title or link> 🎧`
+            `* 🎵 [DJ ${myName}] The song queue is now empty. Feel free to request songs with !play <title or link> 🎧`
         );
     }
 }
@@ -664,7 +664,7 @@ function handleRoomCommand(socket, text, sender) {
         changeFaceExpression(socket, "Eyes", "Wink");
         sendRoomEmote(
             socket,
-            `* 🎵 [DJ ${myName}]: Standalone DJ playing synced room music for everyone! Commands: !yt <song/link> | !queue | !skip | !clear | !radio <genre> | !stop | !np | !whitelist <id> | !dance | !sing`
+            `* 🎵 [DJ ${myName}]: Standalone DJ playing synced room music for everyone! Commands: !play <song/link> | !queue | !skip | !clear | !radio <genre> | !stop | !np | !whitelist <id> | !dance | !sing`
         );
         setTimeout(() => {
             sendRoomEmote(
@@ -672,7 +672,7 @@ function handleRoomCommand(socket, text, sender) {
                 `* 📻 Radio Genres: lofi, synth, chillsynth, pop, dance, rock, hiphop, jazz. Example: !radio synth`
             );
         }, 1200);
-    } else if (cmd === "!yt" || cmd === "!play") {
+    } else if (cmd === "!play" || cmd === "!yt") {
         const urlMatch = text.match(/https?:\/\/[^\s\)\>\]]+/i);
         let extractedUrl = urlMatch ? urlMatch[0].replace(/[\)\>\]\.\,\'\"\`]+$/, "") : null;
 
@@ -680,18 +680,18 @@ function handleRoomCommand(socket, text, sender) {
         const cleanQuery = rawAfterCmd.replace(/^[\(\[\<\"\']+|[\)\]\>\"\']+$/g, "").trim();
 
         const isDirectAudio = extractedUrl && (extractedUrl.toLowerCase().includes(".mp3") || extractedUrl.toLowerCase().includes(".mp4"));
-        const isYoutube = (extractedUrl && (extractedUrl.includes("youtube.com") || extractedUrl.includes("youtu.be"))) || cmd === "!yt" || (!isDirectAudio && cleanQuery.length > 0);
+        const isYoutube = (extractedUrl && (extractedUrl.includes("youtube.com") || extractedUrl.includes("youtu.be"))) || (!isDirectAudio && cleanQuery.length > 0);
 
         if (!cleanQuery && !extractedUrl) {
             sendRoomEmote(
                 socket,
-                `* ⚠️ [DJ ${myName}] Please provide a YouTube link, song title, or .mp3 URL! Example: !yt https://youtu.be/... or !yt linkin park numb`
+                `* ⚠️ [DJ ${myName}] Please provide a song title, YouTube link, or .mp3 URL! Example: !play https://youtu.be/... or !play linkin park numb`
             );
             return;
         }
 
         // Direct MP3 URL
-        if (isDirectAudio && cmd === "!play") {
+        if (isDirectAudio) {
             if (!currentTrack) {
                 setRoomMusic(socket, extractedUrl, `Custom Audio (${path.basename(new URL(extractedUrl).pathname)})`);
             } else {
@@ -777,7 +777,7 @@ function handleRoomCommand(socket, text, sender) {
         if (!currentTrack && songQueue.length === 0) {
             sendRoomEmote(
                 socket,
-                `* 📋 [DJ ${myName}] The song queue is currently empty! Use !yt <song/link> to request a track.`
+                `* 📋 [DJ ${myName}] The song queue is currently empty! Use !play <song/link> to request a track.`
             );
             return;
         }
@@ -853,7 +853,7 @@ function handleRoomCommand(socket, text, sender) {
         } else {
             sendRoomEmote(
                 socket,
-                `* 🔇 [DJ ${myName}] No music is currently playing in the room. Type !yt <song> or !radio <genre> to start!`
+                `* 🔇 [DJ ${myName}] No music is currently playing in the room. Type !play <song> or !radio <genre> to start!`
             );
         }
     } else if (cmd === "!dance") {
