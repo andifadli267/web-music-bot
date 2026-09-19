@@ -39,7 +39,7 @@ Bot karakter mandiri (avatar akun tersendiri) untuk **Bondage Club (R132+)** ([h
 | Perintah | Contoh | Efek Musik & Karakter |
 | :--- | :--- | :--- |
 | `!help` / `!music` | `!help` | Menampilkan panduan dan daftar stasiun radio |
-| `!yt <link/judul>` | `!yt https://youtu.be/...` | **Otomatis konversi video YouTube ke MP3** & diputar ke seluruh room! 🎶 |
+| `!yt <link/judul>` | `!yt https://youtu.be/...` | **Otomatis konversi video YouTube ke MP3** & diupload ke `tmpfile.link` untuk diputar ke seluruh room! 🎶 |
 | `!radio <genre>` | `!radio synth` | Mengganti musik room untuk **semua orang** |
 | `!play <url.mp3>` | `!play https://.../lagu.mp3` | Memutar link MP3 kustom untuk seluruh room |
 | `!stop` | `!stop` | Menghentikan musik room untuk semua orang |
@@ -47,6 +47,15 @@ Bot karakter mandiri (avatar akun tersendiri) untuk **Bondage Club (R132+)** ([h
 | `!dance` | `!dance` | Karakter bot berjoget dan berdisko di tengah room 💃 |
 | `!sing` | `!sing` | Karakter bot bernyanyi di chat mikrofon room 🎤 |
 | `!admin` | `!admin` | Memberikan hak Room Admin kepada Anda |
+
+---
+
+## 🎵 Alur Konversi & Hosting Lagu YouTube
+
+Bot mengintegrasikan alur pemutaran musik otomatis:
+1. **Konverter Audio**: Mendukung integrasi konversi YouTube ke MP3 via layanan [ytmp3.gg](https://media.ytmp3.gg/tools/youtube-video-downloader/cvswxo) dengan fallback otomatis ke engine lokal berkecepatan tinggi (`yt-dlp` + `ffmpeg`).
+2. **Hosting Direct CDN Cloudflare**: MP3 hasil konversi diunggah secara otomatis ke layanan [tmpfile.link](https://tmpfile.link/index-id) (menggunakan storage backend Cloudflare R2).
+3. **URL Kompatibel Bondage Club**: Menghasilkan link direct berakhiran `.mp3` dengan panjang ringkas (< 120 karakter, jauh di bawah limit game 250 karakter) sehingga langsung dapat dimuat dan diputar secara serempak oleh audio engine game untuk setiap pemain di dalam room.
 
 ---
 

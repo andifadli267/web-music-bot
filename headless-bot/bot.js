@@ -325,7 +325,121 @@ function changeFaceExpression(socket, group, expression) {
 
 let isConverting = false;
 
-function convertYoutubeToMp3(queryOrUrl) {
+/**
+ * Mengunggah file MP3 hasil konversi ke tmpfile.link (https://tmpfile.link/index-id)
+ * Layanan ini menghasilkan direct link berkecepatan tinggi di Cloudflare R2
+ * yang berakhiran .mp3 dan sangat cocok dengan limit URL Bondage Club.
+ */
+async function uploadToTmpfileLink(buffer, filename = "track.mp3") {
+    console.log(`[Upload tmpfile.link] Mengunggah ${filename} (${buffer.length} bytes)...`);
+    const blob = new Blob([buffer], { type: "audio/mpeg" });
+    const formData = new FormData();
+    formData.append("file", blob, filename);
+
+    const res = await fetch("https://tmpfile.link/api/upload", {
+        method: "POST",
+        body: formData,
+        headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Referer": "https://tmpfile.link/index-id",
+            "Origin": "https://tmpfile.link"
+        }
+    });
+
+    if (!res.ok) {
+        throw new Error(`tmpfile.link upload HTTP ${res.status}`);
+    }
+
+    const data = await res.json();
+    if (!data || !data.downloadLink) {
+        throw new Error("Respon tidak valid dari tmpfile.link: " + JSON.stringify(data));
+    }
+
+    return data.downloadLink;
+}
+
+/**
+ * Fallback uploader jika tmpfile.link sedang sibuk/down
+ */
+async function uploadToTmpfilesOrg(buffer, filename = "track.mp3") {
+    console.log(`[Upload tmpfiles.org] Mengunggah fallback ${filename} (${buffer.length} bytes)...`);
+    const blob = new Blob([buffer], { type: "audio/mpeg" });
+    const formData = new FormData();
+    formData.append("file", blob, filename);
+
+    const res = await fetch("https://tmpfiles.org/api/v1/upload", {
+        method: "POST",
+        body: formData,
+    });
+    const data = await res.json();
+    if (data && data.data && data.data.url) {
+        return data.data.url.replace("tmpfiles.org/", "tmpfiles.org/dl/");
+    }
+    throw new Error("Gagal mengunggah fallback ke tmpfiles.org");
+}
+
+async function uploadAudio(buffer, filename) {
+    try {
+        return await uploadToTmpfileLink(buffer, filename);
+    } catch (err) {
+        console.warn("[Upload Warning] tmpfile.link gagal (" + err.message + "), mencoba fallback tmpfiles.org...");
+        return await uploadToTmpfilesOrg(buffer, filename);
+    }
+}
+
+/**
+ * Mencoba konversi via backend ytmp3.gg (https://media.ytmp3.gg/tools/youtube-video-downloader/cvswxo)
+ */
+async function convertViaYtmp3(youtubeUrl) {
+    console.log(`[ytmp3.gg] Mencoba konversi via API ytmp3: ${youtubeUrl}`);
+    const res = await fetch("https://ytdl.convert1s.com/api/v2/download", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Origin": "https://media.ytmp3.gg",
+            "Referer": "https://media.ytmp3.gg/tools/youtube-video-downloader/cvswxo"
+        },
+        body: JSON.stringify({
+            url: youtubeUrl,
+            output: { type: "audio", format: "mp3" }
+        })
+    });
+
+    if (!res.ok) throw new Error(`HTTP Status ${res.status}`);
+    const job = await res.json();
+    if (!job || !job.statusUrl) throw new Error("statusUrl tidak ditemukan");
+
+    const title = job.title || "YouTube Audio";
+    const statusUrl = job.statusUrl;
+
+    // Polling status tugas ytmp3 hingga 12 detik
+    for (let i = 0; i < 8; i++) {
+        await new Promise(r => setTimeout(r, 1500));
+        const sRes = await fetch(statusUrl, {
+            headers: {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Origin": "https://media.ytmp3.gg",
+                "Referer": "https://media.ytmp3.gg/tools/youtube-video-downloader/cvswxo"
+            }
+        });
+        if (!sRes.ok) continue;
+        const sData = await sRes.json();
+        if (sData.downloadUrl) {
+            console.log(`[ytmp3.gg] Audio selesai dikonversi! URL: ${sData.downloadUrl}`);
+            const aRes = await fetch(sData.downloadUrl);
+            const buf = await aRes.arrayBuffer();
+            return { title, buffer: Buffer.from(buf) };
+        }
+        if (sData.status === "error") throw new Error("Status error: " + (sData.error || sData.message));
+    }
+    throw new Error("Antrian ytmp3.gg membutuhkan waktu lebih dari 12 detik");
+}
+
+/**
+ * Konversi lokal via yt-dlp + ffmpeg jika ytmp3 sedang sibuk atau URL berupa pencarian judul
+ */
+function convertViaYtDlp(queryOrUrl) {
     return new Promise((resolve, reject) => {
         const tempDir = path.join(__dirname, "temp");
         if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
@@ -333,6 +447,7 @@ function convertYoutubeToMp3(queryOrUrl) {
         const fileId = "yt_" + Date.now();
         const outputPath = path.join(tempDir, `${fileId}.%(ext)s`);
         const finalMp3Path = path.join(tempDir, `${fileId}.mp3`);
+        const titleFilePath = path.join(tempDir, `${fileId}_title.txt`);
 
         const target = (queryOrUrl.startsWith("http://") || queryOrUrl.startsWith("https://")) 
             ? queryOrUrl 
@@ -345,14 +460,23 @@ function convertYoutubeToMp3(queryOrUrl) {
             "--audio-quality", "5",
             "--max-filesize", "25M",
             "--no-playlist",
+            "--print-to-file", "%(title)s", titleFilePath,
             "-o", outputPath,
             target
         ];
 
-        console.log(`[YouTube] Mengonversi "${queryOrUrl}" ke MP3...`);
-        execFile("python", args, { timeout: 75000 }, async (err, stdout, stderr) => {
+        console.log(`[yt-dlp] Mengonversi "${queryOrUrl}" secara lokal...`);
+        execFile("python", args, { timeout: 75000 }, (err, stdout, stderr) => {
+            let title = queryOrUrl;
+            if (fs.existsSync(titleFilePath)) {
+                try {
+                    title = fs.readFileSync(titleFilePath, "utf8").trim() || queryOrUrl;
+                    fs.unlinkSync(titleFilePath);
+                } catch(_) {}
+            }
+
             if (err) {
-                console.error("[YouTube Error]:", err.message);
+                try { if (fs.existsSync(finalMp3Path)) fs.unlinkSync(finalMp3Path); } catch(_) {}
                 return reject(err);
             }
 
@@ -360,41 +484,38 @@ function convertYoutubeToMp3(queryOrUrl) {
                 return reject(new Error("File MP3 tidak ditemukan setelah konversi."));
             }
 
-            let title = queryOrUrl;
-            const titleMatch = stdout.match(/Destination:\s*(.+)/);
-            if (titleMatch) {
-                title = path.basename(titleMatch[1], path.extname(titleMatch[1]));
-            }
-
-            try {
-                console.log(`[YouTube] Mengunggah file ke CDN tmpfiles...`);
-                const fileBuffer = fs.readFileSync(finalMp3Path);
-                const safeFileName = fileId + ".mp3";
-                const blob = new Blob([fileBuffer], { type: "audio/mpeg" });
-                const form = new FormData();
-                form.append("file", blob, safeFileName);
-
-                const res = await fetch("https://tmpfiles.org/api/v1/upload", {
-                    method: "POST",
-                    body: form,
-                });
-                const data = await res.json();
-
-                try { fs.unlinkSync(finalMp3Path); } catch(_) {}
-
-                if (data && data.data && data.data.url) {
-                    const directUrl = data.data.url.replace("tmpfiles.org/", "tmpfiles.org/dl/");
-                    console.log(`[YouTube] Berhasil! Direct MP3 URL: ${directUrl}`);
-                    resolve({ title, directUrl });
-                } else {
-                    reject(new Error("Gagal mengunggah file ke CDN tmpfiles."));
-                }
-            } catch(uploadErr) {
-                try { fs.unlinkSync(finalMp3Path); } catch(_) {}
-                reject(uploadErr);
-            }
+            const buffer = fs.readFileSync(finalMp3Path);
+            try { fs.unlinkSync(finalMp3Path); } catch(_) {}
+            resolve({ title, buffer });
         });
     });
+}
+
+/**
+ * Fungsi utama konversi YouTube -> MP3 -> tmpfile.link
+ */
+async function convertYoutubeToMp3(queryOrUrl) {
+    let result = null;
+    const isUrl = queryOrUrl.startsWith("http://") || queryOrUrl.startsWith("https://");
+
+    if (isUrl && (queryOrUrl.includes("youtube.com") || queryOrUrl.includes("youtu.be"))) {
+        try {
+            result = await convertViaYtmp3(queryOrUrl);
+        } catch (e) {
+            console.log(`[YouTube] Info ytmp3.gg (${e.message}), beralih otomatis ke extractor cepat...`);
+        }
+    }
+
+    if (!result) {
+        result = await convertViaYtDlp(queryOrUrl);
+    }
+
+    const safeTitle = (result.title || "song").replace(/[^a-zA-Z0-9_\-\.]/g, "_").slice(0, 30);
+    const filename = `${safeTitle}_${Date.now()}.mp3`;
+    const directUrl = await uploadAudio(result.buffer, filename);
+
+    console.log(`[YouTube] Berhasil! Judul: "${result.title}", Direct URL: ${directUrl}`);
+    return { title: result.title, directUrl };
 }
 
 function handleRoomCommand(socket, text, sender) {
