@@ -54,6 +54,7 @@ let vibeTimer = null;
 let retryJoinTimer = null;
 
 async function startBot() {
+    cleanTempFiles();
     console.log("==========================================================");
     console.log("🤖 Bondage Club - Standalone Music DJ Character Bot");
     console.log("   Memutar musik room resmi agar terdengar oleh SEMUA ORANG");
@@ -437,6 +438,33 @@ async function convertViaYtmp3(youtubeUrl) {
 }
 
 /**
+ * Menghapus seluruh file lagu sementara di direktori lokal (temp/)
+ * agar tidak memakan ruang penyimpanan hard disk komputer pengguna.
+ */
+function cleanTempFiles(patternOrFileId = null) {
+    const tempDir = path.join(__dirname, "temp");
+    if (!fs.existsSync(tempDir)) return;
+    try {
+        const files = fs.readdirSync(tempDir);
+        for (const f of files) {
+            if (!patternOrFileId || f.includes(patternOrFileId)) {
+                try {
+                    const fullPath = path.join(tempDir, f);
+                    if (fs.statSync(fullPath).isFile()) {
+                        fs.unlinkSync(fullPath);
+                        console.log(`🧹 [Pembersihan Otomatis] Menghapus file lokal: ${f}`);
+                    }
+                } catch (e) {
+                    // Abaikan jika file sedang terkunci sesaat
+                }
+            }
+        }
+    } catch (err) {
+        console.warn("[Pembersihan Temp Gagal]:", err.message);
+    }
+}
+
+/**
  * Konversi lokal via yt-dlp + ffmpeg jika ytmp3 sedang sibuk atau URL berupa pencarian judul
  */
 function convertViaYtDlp(queryOrUrl) {
@@ -455,6 +483,7 @@ function convertViaYtDlp(queryOrUrl) {
 
         const args = [
             "-m", "yt_dlp",
+            "--no-cache-dir",
             "--ffmpeg-location", ffmpegPath,
             "-x", "--audio-format", "mp3",
             "--audio-quality", "5",
@@ -476,16 +505,18 @@ function convertViaYtDlp(queryOrUrl) {
             }
 
             if (err) {
-                try { if (fs.existsSync(finalMp3Path)) fs.unlinkSync(finalMp3Path); } catch(_) {}
+                cleanTempFiles(fileId);
                 return reject(err);
             }
 
             if (!fs.existsSync(finalMp3Path)) {
+                cleanTempFiles(fileId);
                 return reject(new Error("File MP3 tidak ditemukan setelah konversi."));
             }
 
             const buffer = fs.readFileSync(finalMp3Path);
-            try { fs.unlinkSync(finalMp3Path); } catch(_) {}
+            // Segera hapus file mp3 dan artefak sementara fileId dari disk lokal
+            cleanTempFiles(fileId);
             resolve({ title, buffer });
         });
     });
@@ -493,29 +524,40 @@ function convertViaYtDlp(queryOrUrl) {
 
 /**
  * Fungsi utama konversi YouTube -> MP3 -> tmpfile.link
+ * dan otomatis menghapus seluruh file audio dari penyimpanan lokal.
  */
 async function convertYoutubeToMp3(queryOrUrl) {
     let result = null;
     const isUrl = queryOrUrl.startsWith("http://") || queryOrUrl.startsWith("https://");
 
-    if (isUrl && (queryOrUrl.includes("youtube.com") || queryOrUrl.includes("youtu.be"))) {
-        try {
-            result = await convertViaYtmp3(queryOrUrl);
-        } catch (e) {
-            console.log(`[YouTube] Info ytmp3.gg (${e.message}), beralih otomatis ke extractor cepat...`);
+    try {
+        if (isUrl && (queryOrUrl.includes("youtube.com") || queryOrUrl.includes("youtu.be"))) {
+            try {
+                result = await convertViaYtmp3(queryOrUrl);
+            } catch (e) {
+                console.log(`[YouTube] Info ytmp3.gg (${e.message}), beralih otomatis ke extractor cepat...`);
+            }
         }
+
+        if (!result) {
+            result = await convertViaYtDlp(queryOrUrl);
+        }
+
+        const safeTitle = (result.title || "song").replace(/[^a-zA-Z0-9_\-\.]/g, "_").slice(0, 30);
+        const filename = `${safeTitle}_${Date.now()}.mp3`;
+        const directUrl = await uploadAudio(result.buffer, filename);
+
+        // Hapus sisa file lokal dan bersihkan memori buffer
+        result.buffer = null;
+        cleanTempFiles();
+
+        console.log(`[YouTube] Berhasil! Judul: "${result.title}", Direct URL: ${directUrl}`);
+        console.log(`🧹 [Storage] File lokal lagu telah berhasil dihapus dari komputer.`);
+        return { title: result.title, directUrl };
+    } catch (err) {
+        cleanTempFiles();
+        throw err;
     }
-
-    if (!result) {
-        result = await convertViaYtDlp(queryOrUrl);
-    }
-
-    const safeTitle = (result.title || "song").replace(/[^a-zA-Z0-9_\-\.]/g, "_").slice(0, 30);
-    const filename = `${safeTitle}_${Date.now()}.mp3`;
-    const directUrl = await uploadAudio(result.buffer, filename);
-
-    console.log(`[YouTube] Berhasil! Judul: "${result.title}", Direct URL: ${directUrl}`);
-    return { title: result.title, directUrl };
 }
 
 function handleRoomCommand(socket, text, sender) {
@@ -663,5 +705,16 @@ function stopVibeAnimation() {
         vibeTimer = null;
     }
 }
+
+process.on("SIGINT", () => {
+    console.log("\n🛑 Menghentikan bot & membersihkan penyimpanan lokal...");
+    cleanTempFiles();
+    process.exit(0);
+});
+
+process.on("SIGTERM", () => {
+    cleanTempFiles();
+    process.exit(0);
+});
 
 startBot().catch((err) => console.error("Fatal Error:", err));
