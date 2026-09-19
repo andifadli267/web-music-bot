@@ -11,8 +11,18 @@
 const { io } = require("socket.io-client");
 require("dotenv").config();
 
+function resolveServerUrl(url) {
+    if (!url) return "https://bondage-club-server.herokuapp.com/";
+    const lower = url.toLowerCase();
+    if (lower.includes("bondage-asia") || lower.includes("bondage-europe") || lower.includes("bondageprojects") || lower.includes("bondageeurope")) {
+        return "https://bondage-club-server.herokuapp.com/";
+    }
+    return url;
+}
+
 const CONFIG = {
-    serverUrl: process.env.BC_SERVER_URL || "https://bondage-club-server.herokuapp.com/",
+    webUrl: process.env.BC_SERVER_URL || "https://www.bondage-asia.com/club/R132/",
+    serverUrl: resolveServerUrl(process.env.BC_SERVER_URL),
     accountName: process.env.BC_BOT_USERNAME || "Nava1",
     password: process.env.BC_BOT_PASSWORD || "yondaime",
     targetRoom: process.env.BC_TARGET_ROOM || "V Main Hall",

@@ -1,20 +1,21 @@
 # Bondage Club - Standalone Music DJ Character Bot
 
-Bot karakter mandiri (avatar akun tersendiri) untuk **Bondage Club (R132+)** & **BC-Desktop** yang berdiri 24/7 di dalam chat room sebagai **Music DJ Room**.
+Bot karakter mandiri (avatar akun tersendiri) untuk **Bondage Club (R132+)** ([https://www.bondage-asia.com/club/R132/](https://www.bondage-asia.com/club/R132/)) dan **BC-Desktop** yang bergabung ke ruangan private **V Main Hall** sebagai **Music DJ Room**.
 
 > [!IMPORTANT]
-> **Terdengar oleh SEMUA ORANG di Room Tanpa Addon Apapun!**  
-> Bot ini memanfaatkan fitur native room resmi game (**Bondage Club Room Customization `Custom.MusicURL`**). Setiap kali lagu/radio diputar atau diganti, server Bondage Club secara otomatis menyiarkan audio ke **semua pemain yang ada di dalam room** sehingga musik terdengar langsung di speaker/headset setiap pemain tanpa pemain lain harus menginstall addon atau ekstensi apapun!
+> **Terdengar oleh SEMUA ORANG di Ruangan Tanpa Addon Apapun!**  
+> Bot ini memanfaatkan fitur native room resmi game (**Bondage Club Room Customization `Custom.MusicURL`**). Setiap kali lagu/radio diputar atau diganti, server Bondage Club secara otomatis menyiarkan audio ke **semua pemain yang ada di dalam room**, sehingga musik berputar serempak di speaker/headset setiap pemain tanpa siapapun harus memasang addon atau ekstensi!
 
 ---
 
 ## 🚀 Keunggulan Karakter Bot Mandiri (`headless-bot/`)
 
 - **Bukan Addon Pemain**: Karakter utama Anda di BC-Desktop bebas bermain normal tanpa script/addon DJ di karakter Anda. Bot berjalan di background sebagai karakter avatar terpisah.
-- **Lagu Didengar Semua Orang**: Musik room otomatis tersinkronisasi untuk seluruh pengunjung room via server resmi BC.
+- **Bergabung ke Ruangan Private**: Dikonfigurasi otomatis untuk terhubung ke ruangan private **`V Main Hall`**.
+- **Lagu Didengar Semua Orang**: Musik room otomatis tersinkronisasi untuk seluruh pengunjung room via server resmi game.
 - **Animasi Wajah & Gerak Otomatis**: Karakter bot berkedip, tersenyum, berjoget (`!dance`), dan bernyanyi (`!sing`) mengikuti alunan musik.
-- **Sapa Pengunjung Otomatis (Auto-Welcome)**: Bot otomatis menyapa dan menyambut setiap pemain baru yang bergabung ke room.
-- **Kendalikan Via Chat**: Siapapun di room dapat meminta stasiun radio atau lagu menggunakan perintah chat sederhana.
+- **Sapa Pengunjung Otomatis (Auto-Welcome)**: Bot otomatis menyambut setiap pemain yang bergabung ke room.
+- **Auto-Join via Beep**: Cukup kirim Beep ke nomor bot (**`#258115`**) dari dalam room, dan bot akan langsung melangkah masuk ke room Anda.
 
 ---
 
@@ -48,21 +49,22 @@ Bot karakter mandiri (avatar akun tersendiri) untuk **Bondage Club (R132+)** & *
 
 ---
 
-## 🛠️ Cara Menjalankan Karakter Bot Mandiri
+## 🛠️ Cara Menjalankan Karakter Bot
 
 1. Buka folder `headless-bot/`:
    ```bash
    cd e:\project\web-music-bot\headless-bot
    ```
-2. Pastikan file konfigurasi `.env` sudah sesuai:
+2. Konfigurasi file `.env`:
    ```env
-   BC_SERVER_URL=https://bondage-club-server.herokuapp.com/
+   BC_SERVER_URL=https://www.bondage-asia.com
    BC_BOT_USERNAME=Nava1
    BC_BOT_PASSWORD=yondaime
-   BC_TARGET_ROOM=V Lounge
+   BC_TARGET_ROOM=V Main Hall
    BC_ROOM_PASSWORD=
    ```
 3. Jalankan bot:
    - Klik ganda **`start-bot.bat`**, atau
    - Jalankan perintah: `node bot.js`
-4. Buka game **Bondage Club** dengan akun utama Anda, cari dan masuklah ke room: **`V Lounge`**. Anda akan langsung bertemu dengan bot **Nava** dan mendengar alunan musik yang sedang diputar!
+4. Buka game **Bondage Club** ([https://www.bondage-asia.com/club/R132/](https://www.bondage-asia.com/club/R132/)) atau lewat **BC-Desktop**.
+5. Masuk ke ruangan private **`V Main Hall`**. Pastikan nomor member bot (**`258115`** / Nava) telah dimasukkan ke dalam **Whitelist** room (atau kirim Beep ke `#258115` dari dalam room) agar bot langsung masuk!
