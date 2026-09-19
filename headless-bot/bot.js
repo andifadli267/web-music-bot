@@ -1,9 +1,10 @@
 /**
  * Bondage Club (R132+) - Standalone Headless DJ Character Bot
  * 
- * Bot karakter mandiri yang login dengan akun tersendiri, masuk/membuat room,
- * dan memutar musik room via native BC Room Customization (Custom.MusicURL)
- * sehingga MUSIK DAPAT DIDENGAR SECARA BERSAMAAN OLEH SEMUA PEMAIN DI ROOM
+ * Bot karakter mandiri yang login dengan akun tersendiri,
+ * bergabung ke ruangan private yang telah ditentukan (misal: "V Main Hall"),
+ * dan menyiarkan musik room resmi via native BC Room Customization (Custom.MusicURL)
+ * sehingga MUSIK DAPAT DIDENGAR SECARA BERSAMAAN OLEH SEMUA ORANG DI ROOM
  * tanpa pemain lain perlu menginstall addon atau ekstensi apapun!
  */
 
@@ -36,27 +37,28 @@ let currentRoomData = null;
 let isInRoom = false;
 let knownCharacters = new Set();
 let vibeTimer = null;
+let retryJoinTimer = null;
 
 async function startBot() {
     console.log("==========================================================");
     console.log("🤖 Bondage Club - Standalone Music DJ Character Bot");
     console.log("   Memutar musik room resmi agar terdengar oleh SEMUA ORANG");
     console.log("==========================================================");
-    console.log(`📡 Server Game   : ${CONFIG.serverUrl}`);
-    console.log(`👤 Akun Karakter : ${CONFIG.accountName}`);
-    console.log(`🚪 Target Room   : "${CONFIG.targetRoom}"`);
+    console.log(`📡 Server Game    : ${CONFIG.serverUrl}`);
+    console.log(`👤 Akun Karakter  : ${CONFIG.accountName}`);
+    console.log(`🚪 Target Ruangan : "${CONFIG.targetRoom}" (Private Room)`);
     console.log("----------------------------------------------------------");
 
     const socket = io(CONFIG.serverUrl, {
         transports: ["websocket"],
         reconnection: true,
-        reconnectionAttempts: 25,
+        reconnectionAttempts: 50,
         reconnectionDelay: 3000,
     });
 
     socket.on("connect", () => {
-        console.log("✅ Terhubung ke socket server BC! Socket ID:", socket.id);
-        console.log(`🔑 Login sebagai karakter "${CONFIG.accountName}"...`);
+        console.log("✅ Terhubung ke socket server BC! (Socket ID: " + socket.id + ")");
+        console.log(`🔑 Mengirim permintaan login untuk "${CONFIG.accountName}"...`);
 
         socket.emit("AccountLogin", {
             AccountName: CONFIG.accountName,
@@ -72,27 +74,44 @@ async function startBot() {
 
         if (res && res.AccountName) {
             botPlayer = res;
-            console.log(`🎉 Login Berhasil! Nama Karakter: ${res.Name || res.AccountName} [Member #${res.MemberNumber}]`);
-            console.log(`🚪 Memasuki chat room "${CONFIG.targetRoom}"...`);
+            console.log(`🎉 Login Berhasil!`);
+            console.log(`   Nama Karakter : ${res.Name || res.AccountName}`);
+            console.log(`   Member Number : #${res.MemberNumber}`);
+            console.log("----------------------------------------------------------");
+            console.log(`🚪 Memulai pencarian dan bergabung ke ruangan private "${CONFIG.targetRoom}"...`);
+            console.log(`💡 PENTING: Pada room private Anda di game, pastikan nomor #${res.MemberNumber} (${res.Name || res.AccountName}) sudah ditambahkan ke Whitelist / Admin list!`);
+            console.log("----------------------------------------------------------");
+            
             joinTargetRoom(socket);
         }
     });
 
+    // Menangani respon jika room belum ditemukan / terkunci
     socket.on("ChatRoomSearchResponse", (data) => {
-        if (data === "CannotFindRoom") {
-            console.log(`ℹ️ Room "${CONFIG.targetRoom}" belum ada.`);
-            console.log(`🔨 Karakter bot membuat room baru "${CONFIG.targetRoom}" sebagai Room Creator & Admin...`);
-            createRoom(socket);
+        if (isInRoom) return;
+
+        if (data === "CannotFindRoom" || data === "RoomLocked") {
+            process.stdout.write(`\r⏳ Menunggu akses ke ruangan "${CONFIG.targetRoom}" (Respon: ${data}). Mencoba kembali... `);
+            scheduleRetryJoin(socket, 5000);
         } else if (data === "RoomFull") {
-            console.warn(`⚠️ Room "${CONFIG.targetRoom}" penuh. Mencoba kembali dalam 8 detik...`);
-            setTimeout(() => joinTargetRoom(socket), 8000);
-        } else if (data === "RoomLocked") {
-            console.warn(`⚠️ Room "${CONFIG.targetRoom}" terkunci.`);
+            console.warn(`\n⚠️ Ruangan "${CONFIG.targetRoom}" penuh. Mencoba kembali dalam 8 detik...`);
+            scheduleRetryJoin(socket, 8000);
+        } else if (data === "JoinedRoom") {
+            console.log(`\n✅ Respon server: Berhasil bergabung ke room!`);
+        } else {
+            console.log(`\nℹ️ ChatRoomSearchResponse:`, data);
         }
     });
 
-    socket.on("ChatRoomCreateResponse", (data) => {
-        console.log("ℹ️ ChatRoomCreateResponse:", data);
+    // Fitur Beep / Invite: Jika pemilik mengirim beep kepada bot dari dalam room, bot langsung bergabung
+    socket.on("AccountBeep", (data) => {
+        if (!data || typeof data !== "object") return;
+        console.log(`\n📩 Menerima Beep/Panggilan dari: ${data.MemberName} (#${data.MemberNumber})`);
+        if (data.ChatRoomName) {
+            console.log(`🚪 Beep mengundang ke Chat Room: "${data.ChatRoomName}"! Mengarahkan bot masuk...`);
+            CONFIG.targetRoom = data.ChatRoomName;
+            joinTargetRoom(socket);
+        }
     });
 
     socket.on("ChatRoomSync", (data) => {
@@ -100,39 +119,37 @@ async function startBot() {
 
         isInRoom = true;
         currentRoomData = data;
+        if (retryJoinTimer) {
+            clearTimeout(retryJoinTimer);
+            retryJoinTimer = null;
+        }
 
         const charList = Array.isArray(data.Character) ? data.Character : [];
         console.log(`\n==========================================================`);
-        console.log(`📍 Karakter bot berada di Room: "${data.Name}"!`);
+        console.log(`📍 Karakter bot BERHASIL BERADA di Ruangan: "${data.Name}"!`);
         console.log(`👥 Pemain di room (${charList.length}): ${charList.map(c => c.Name).join(", ") || "Hanya bot"}`);
         console.log(`👑 Admin Room: ${Array.isArray(data.Admin) ? data.Admin.join(", ") : "Tidak ada"}`);
         
         const activeMusic = data.Custom && data.Custom.MusicURL;
-        console.log(`🎵 Status Musik Room: ${activeMusic ? activeMusic : "Belum ada (Ketik !radio untuk menyalakan)"}`);
+        console.log(`🎵 Status Musik Room: ${activeMusic ? activeMusic : "Belum aktif (Gunakan perintah !radio untuk menyalakan)"}`);
         console.log(`==========================================================\n`);
 
-        // Deteksi pemain baru untuk auto-welcome
+        // Sapaan hangat saat baru masuk room
+        setTimeout(() => {
+            sendRoomEmote(
+                socket,
+                `* 🎵 [DJ ${botPlayer.Name || CONFIG.accountName}] Siap menyiarkan musik di ${data.Name}! Ketik !help untuk memilih genre lagu yang ingin didengar bersama 🎧`
+            );
+        }, 1500);
+
+        // Sambut pemain lain yang ada
         charList.forEach(c => {
             if (c.MemberNumber !== botPlayer.MemberNumber && !knownCharacters.has(c.MemberNumber)) {
                 knownCharacters.add(c.MemberNumber);
-                setTimeout(() => {
-                    sendRoomEmote(
-                        socket,
-                        `* 🎵 [DJ ${botPlayer.Name || CONFIG.accountName}] Halo ${c.Name}! Selamat datang di music lounge. Ketik !help untuk memilih lagu yang ingin diputar di room! 🎧`
-                    );
-                }, 2000);
             }
         });
 
-        // Jika room belum ada musik dan bot adalah admin, aktifkan default radio
-        if (!activeMusic && isBotAdmin()) {
-            console.log("🎶 Mengaktifkan musik room awal (Lo-Fi Chill Beats)...");
-            setTimeout(() => {
-                setRoomMusic(socket, currentStation.url, currentStation.name);
-            }, 2500);
-        }
-
-        // Mulai getaran vibe animasi wajah
+        // Mulai getaran ekspresi wajah menikmati musik
         startVibeAnimation(socket);
     });
 
@@ -144,29 +161,29 @@ async function startBot() {
 
         if (botPlayer && sender === botPlayer.MemberNumber) return;
 
-        // Tangkap pemain baru yang mengirim pesan
+        // Catat pemain yang aktif chat
         if (sender && !knownCharacters.has(sender)) {
             knownCharacters.add(sender);
         }
 
-        console.log(`💬 Chat [Member #${sender}]: "${content}"`);
+        console.log(`💬 [Member #${sender}]: "${content}"`);
         if (!content.startsWith("!")) return;
 
         handleRoomCommand(socket, content, sender);
     });
 
-    // Auto-rejoin timer jika terputus atau tertinggal di luar room
+    // Auto-rejoin timer jika bot terlempar keluar dari room
     setInterval(() => {
         if (botPlayer && !isInRoom) {
             joinTargetRoom(socket);
         }
-    }, 15000);
+    }, 12000);
 
     socket.on("disconnect", (reason) => {
         isInRoom = false;
         currentRoomData = null;
         stopVibeAnimation();
-        console.warn(`⚠️ Terputus dari server BC (${reason}). Menyambung ulang...`);
+        console.warn(`\n⚠️ Terputus dari game server (${reason}). Menyambung ulang...`);
     });
 
     socket.on("connect_error", (err) => {
@@ -174,36 +191,19 @@ async function startBot() {
     });
 }
 
+function scheduleRetryJoin(socket, delayMs) {
+    if (retryJoinTimer) clearTimeout(retryJoinTimer);
+    retryJoinTimer = setTimeout(() => {
+        if (!isInRoom) {
+            joinTargetRoom(socket);
+        }
+    }, delayMs);
+}
+
 function joinTargetRoom(socket) {
-    console.log(`🚪 Mencoba bergabung ke room "${CONFIG.targetRoom}"...`);
     socket.emit("ChatRoomJoin", {
         Name: CONFIG.targetRoom,
     });
-}
-
-function createRoom(socket) {
-    const myId = botPlayer ? botPlayer.MemberNumber : 0;
-    const newRoom = {
-        Name: CONFIG.targetRoom,
-        Description: "🎵 DJ Music Lounge - Lagu terdengar oleh semua orang!",
-        Background: "MainHall",
-        Limit: 10,
-        Language: "EN",
-        Admin: [myId],
-        Whitelist: [],
-        Ban: [],
-        BlockCategory: [],
-        Game: "",
-        Visibility: ["All"],
-        Access: ["All"],
-        Space: "",
-        MapData: { Type: "Never" },
-        Custom: {
-            MusicURL: currentStation.url,
-            MusicStart: Date.now(),
-        },
-    };
-    socket.emit("ChatRoomCreate", newRoom);
 }
 
 function isBotAdmin() {
@@ -228,7 +228,7 @@ function setRoomMusic(socket, musicUrl, title = "") {
     if (!isBotAdmin()) {
         sendRoomEmote(
             socket,
-            `* ⚠️ [DJ ${myName}] Saya butuh hak Admin room untuk bisa menyetel musik agar didengar SEMUA ORANG di room. Jadikan ${myName} admin room terlebih dahulu ya!`
+            `* ⚠️ [DJ ${myName}] Saya butuh hak Admin room untuk bisa menyetel musik agar didengar SEMUA ORANG di room. Mohon berikan hak Admin kepada ${myName} (#${myId}) ya!`
         );
         return;
     }
@@ -369,9 +369,8 @@ function handleRoomCommand(socket, text, sender) {
             `* 🎤 ${myName} bernyanyi merdu di mikrofon DJ: "Feel the beat, let the music take control~!" 🎵`
         );
     } else if (cmd === "!admin") {
-        // Berikan sender hak room admin jika bot adalah admin
         if (!isBotAdmin()) {
-            sendRoomEmote(socket, `* ⚠️ [DJ ${myName}] Saya sendiri belum menjadi admin di room ini.`);
+            sendRoomEmote(socket, `* ⚠️ [DJ ${myName}] Saya sendiri belum memiliki hak Admin di room ini.`);
             return;
         }
         if (sender && Array.isArray(currentRoomData.Admin) && !currentRoomData.Admin.includes(sender)) {
