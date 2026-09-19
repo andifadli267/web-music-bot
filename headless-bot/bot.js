@@ -203,14 +203,18 @@ async function startBot() {
         let targetRoomToJoin = null;
 
         if (isMaster && isJoinHere) {
-            if (joinMatch && joinMatch[1] && joinMatch[1].trim()) {
-                const roomNameCandidate = joinMatch[1].trim().replace(/^["'(\[]+|["')\]]+$/g, '');
+            // Priority 1: Official ChatRoomName attached to the beep by the game client
+            if (data.ChatRoomName) {
+                targetRoomToJoin = data.ChatRoomName;
+            } 
+            // Priority 2: Room name manually typed after "join here"
+            else if (joinMatch && joinMatch[1] && joinMatch[1].trim()) {
+                let cleaned = joinMatch[1].replace(/[\u200B-\u200D\uFEFF\u2060-\u2064]/g, '');
+                cleaned = cleaned.replace(/LikoMAT:[a-zA-Z0-9_-]+/gi, '').trim();
+                const roomNameCandidate = cleaned.replace(/^["'(\[]+|["')\]]+$/g, '').trim();
                 if (roomNameCandidate && !roomNameCandidate.includes("{") && !roomNameCandidate.includes("}")) {
                     targetRoomToJoin = roomNameCandidate;
                 }
-            }
-            if (!targetRoomToJoin && data.ChatRoomName) {
-                targetRoomToJoin = data.ChatRoomName;
             }
 
             if (targetRoomToJoin) {
@@ -366,7 +370,7 @@ function scheduleRetryJoin(socket, delayMs) {
     }, delayMs);
 }
 
-function joinTargetRoom(socket, roomName = CONFIG.targetRoom, space = "") {
+function joinTargetRoom(socket, roomName = CONFIG.targetRoom, space = (CONFIG.targetSpace || "")) {
     const packet = { Name: roomName };
     if (space) packet.Space = space;
     socket.emit("ChatRoomJoin", packet);
@@ -375,6 +379,7 @@ function joinTargetRoom(socket, roomName = CONFIG.targetRoom, space = "") {
 function switchRoom(socket, roomName, space = "") {
     if (!roomName) return;
     CONFIG.targetRoom = roomName;
+    CONFIG.targetSpace = space || "";
 
     if (isInRoom) {
         if (currentRoomData && currentRoomData.Name && currentRoomData.Name.toLowerCase() === roomName.toLowerCase()) {
