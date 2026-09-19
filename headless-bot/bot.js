@@ -378,8 +378,13 @@ function switchRoom(socket, roomName, space = "") {
         }
         isInRoom = false;
         currentRoomData = null;
-        songQueue = [];
+        if (trackEndTimer) {
+            clearTimeout(trackEndTimer);
+            trackEndTimer = null;
+        }
+        songQueue.length = 0;
         currentTrack = null;
+        currentStation = null;
         stopVibeAnimation();
 
         setTimeout(() => {
