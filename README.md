@@ -34,28 +34,36 @@ Bot karakter mandiri (avatar akun tersendiri) untuk **Bondage Club (R132+)** ([h
 
 ---
 
-## 💬 Daftar Perintah Chat Karakter DJ
+## 💬 DJ Character Chat Commands (English Interface)
 
-| Perintah | Contoh | Efek Musik & Karakter |
+| Command | Example | Description |
 | :--- | :--- | :--- |
-| `!help` / `!music` | `!help` | Menampilkan panduan dan daftar stasiun radio |
-| `!yt <link/judul>` | `!yt https://youtu.be/...` | **Otomatis konversi video YouTube ke MP3** & diupload ke `tmpfile.link` untuk diputar ke seluruh room! 🎶 |
-| `!radio <genre>` | `!radio synth` | Mengganti musik room untuk **semua orang** |
-| `!play <url.mp3>` | `!play https://.../lagu.mp3` | Memutar link MP3 kustom untuk seluruh room |
-| `!stop` | `!stop` | Menghentikan musik room untuk semua orang |
-| `!np` | `!np` | Mengumumkan stasiun/lagu yang sedang diputar di room |
-| `!dance` | `!dance` | Karakter bot berjoget dan berdisko di tengah room 💃 |
-| `!sing` | `!sing` | Karakter bot bernyanyi di chat mikrofon room 🎤 |
-| `!admin` | `!admin` | Memberikan hak Room Admin kepada Anda |
+| `!help` / `!music` | `!help` | Displays command list and available radio stations |
+| `!yt <link/title>` | `!yt https://youtu.be/...` | Converts YouTube track to MP3, uploads to `tmpfile.link`, and plays or queues it |
+| `!queue` / `!q` | `!queue` | Displays currently playing track and upcoming songs (up to 10 in queue) |
+| `!skip` / `!next` | `!skip` | Skips current song and immediately plays next track in queue |
+| `!clear` | `!clear` | Clears all upcoming songs from queue |
+| `!radio <genre>` | `!radio synth` | Switches to 24/7 radio stream (e.g. lofi, synth, pop, rock, jazz) |
+| `!play <url.mp3>` | `!play https://.../song.mp3` | Plays custom MP3 audio or adds it to queue |
+| `!stop` | `!stop` | Stops room music and clears queue |
+| `!np` | `!np` | Announces current song or radio station |
+| `!whitelist <id>` | `!whitelist 254143` | **Room Admin only**: Adds a player to the private room Whitelist |
+| `!dance` | `!dance` | Character dances in the DJ booth |
+| `!sing` | `!sing` | Character sings along into the DJ mic |
 
 ---
 
-## 🎵 Alur Konversi & Hosting Lagu YouTube
+## 📁 Local Storage & Audio Conversion Workflow
 
-Bot mengintegrasikan alur pemutaran musik otomatis:
-1. **Konverter Audio**: Mendukung integrasi konversi YouTube ke MP3 via layanan [ytmp3.gg](https://media.ytmp3.gg/tools/youtube-video-downloader/cvswxo) dengan fallback otomatis ke engine lokal berkecepatan tinggi (`yt-dlp` + `ffmpeg`).
-2. **Hosting Direct CDN Cloudflare**: MP3 hasil konversi diunggah secara otomatis ke layanan [tmpfile.link](https://tmpfile.link/index-id) (menggunakan storage backend Cloudflare R2).
-3. **URL Kompatibel Bondage Club**: Menghasilkan link direct berakhiran `.mp3` dengan panjang ringkas (< 120 karakter, jauh di bawah limit game 250 karakter) sehingga langsung dapat dimuat dan diputar secara serempak oleh audio engine game untuk setiap pemain di dalam room.
+1. **Dedicated Conversion Folder (`converted_tracks/`)**:
+   - All intermediate and downloaded files are processed in a dedicated project directory: `e:\project\web-music-bot\converted_tracks`.
+   - Users can directly view this folder to verify that temporary files are properly created during conversion and **automatically deleted** immediately after upload and playback.
+2. **Audio Conversion**:
+   - Supports conversion via [ytmp3.gg](https://media.ytmp3.gg/tools/youtube-video-downloader/cvswxo) with automatic fallback to high-speed local extraction (`yt-dlp` + `ffmpeg-static`).
+3. **Cloudflare CDN Hosting**:
+   - Converted MP3 files are uploaded to [tmpfile.link](https://tmpfile.link/index-id) (Cloudflare R2 storage).
+4. **Auto Clean-Up**:
+   - Local audio files are unlinked from `converted_tracks/` immediately after upload into memory/CDN, keeping your computer storage completely clean.
 
 ---
 

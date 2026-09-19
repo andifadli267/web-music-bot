@@ -1,11 +1,10 @@
 /**
  * Bondage Club (R132+) - Standalone Headless DJ Character Bot
  * 
- * Bot karakter mandiri yang login dengan akun tersendiri,
- * bergabung ke ruangan private yang telah ditentukan (misal: "V Main Hall"),
- * dan menyiarkan musik room resmi via native BC Room Customization (Custom.MusicURL)
- * sehingga MUSIK DAPAT DIDENGAR SECARA BERSAMAAN OLEH SEMUA ORANG DI ROOM
- * tanpa pemain lain perlu menginstall addon atau ekstensi apapun!
+ * An autonomous character bot that logs in with its own account,
+ * joins the designated private room ("V Main Hall"),
+ * and broadcasts room music using native BC Room Customization (Custom.MusicURL).
+ * Music is synchronized and audible to EVERYONE in the room without requiring addons!
  */
 
 const { io } = require("socket.io-client");
@@ -14,6 +13,12 @@ const path = require("path");
 const fs = require("fs");
 const ffmpegPath = require("ffmpeg-static");
 require("dotenv").config();
+
+// Dedicated folder in project root for converted audio files
+const CONVERT_DIR = path.resolve(__dirname, "..", "converted_tracks");
+if (!fs.existsSync(CONVERT_DIR)) {
+    fs.mkdirSync(CONVERT_DIR, { recursive: true });
+}
 
 function resolveServerUrl(url) {
     if (!url) return "https://bondage-club-server.herokuapp.com/";
@@ -33,7 +38,7 @@ const CONFIG = {
     roomPassword: process.env.BC_ROOM_PASSWORD || "",
 };
 
-// Daftar stasiun radio 24/7 format .mp3 (Wajib .mp3 / .mp4 sesuai aturan validasi server Bondage Club)
+// 24/7 Radio stations in direct .mp3 stream format
 const STATIONS = {
     lofi: { name: "☕ Lo-Fi Chill Beats", genre: "Lo-Fi / Study", url: "https://streams.ilovemusic.de/iloveradio17.mp3" },
     synth: { name: "🕹️ Nightride FM (Synthwave)", genre: "Synthwave / Cyberpunk", url: "https://stream.nightride.fm/synthwave.mp3" },
@@ -45,23 +50,61 @@ const STATIONS = {
     jazz: { name: "🎷 Swiss Jazz & Lounge", genre: "Cafe Jazz", url: "https://jazz-wr01.ice.infomaniak.ch/jazz-wr01-128.mp3" },
 };
 
-let currentStation = STATIONS.lofi;
+// Queue system (Maximum 10 songs)
+const MAX_QUEUE = 10;
+const songQueue = []; // Items: { title, directUrl, duration, requestedBy }
+let currentTrack = null; // { title, directUrl, duration, requestedBy, startedAt }
+let trackEndTimer = null;
+let currentStation = null;
+
 let botPlayer = null;
 let currentRoomData = null;
 let isInRoom = false;
 let knownCharacters = new Set();
 let vibeTimer = null;
 let retryJoinTimer = null;
+let isConverting = false;
+
+/**
+ * Automatically cleans up local audio files in converted_tracks/ and temp/
+ * to ensure no leftover audio files occupy user's local disk space.
+ */
+function cleanLocalFiles(fileIdPattern = null) {
+    const dirs = [CONVERT_DIR, path.join(__dirname, "temp")];
+    for (const dir of dirs) {
+        if (!fs.existsSync(dir)) continue;
+        try {
+            const files = fs.readdirSync(dir);
+            for (const f of files) {
+                if (f === ".gitkeep") continue;
+                if (!fileIdPattern || f.includes(fileIdPattern)) {
+                    try {
+                        const fullPath = path.join(dir, f);
+                        if (fs.statSync(fullPath).isFile()) {
+                            fs.unlinkSync(fullPath);
+                            console.log(`🧹 [Clean-up] Removed local file: ${f}`);
+                        }
+                    } catch (e) {
+                        // Ignore if locked briefly
+                    }
+                }
+            }
+        } catch (err) {
+            console.warn("[Clean-up Warning]:", err.message);
+        }
+    }
+}
 
 async function startBot() {
-    cleanTempFiles();
+    cleanLocalFiles();
     console.log("==========================================================");
     console.log("🤖 Bondage Club - Standalone Music DJ Character Bot");
-    console.log("   Memutar musik room resmi agar terdengar oleh SEMUA ORANG");
+    console.log("   Broadcasting synchronized room audio for EVERYONE");
     console.log("==========================================================");
-    console.log(`🌐 Website Login  : ${CONFIG.webUrl}`);
-    console.log(`👤 Akun Karakter  : ${CONFIG.accountName}`);
-    console.log(`🚪 Target Ruangan : "${CONFIG.targetRoom}" (Private Room)`);
+    console.log(`🌐 Game Web URL   : ${CONFIG.webUrl}`);
+    console.log(`👤 Bot Account    : ${CONFIG.accountName}`);
+    console.log(`🚪 Target Room    : "${CONFIG.targetRoom}" (Private Room)`);
+    console.log(`📁 Local Storage  : ${CONVERT_DIR}`);
     console.log("----------------------------------------------------------");
 
     const socket = io(CONFIG.serverUrl, {
@@ -77,8 +120,8 @@ async function startBot() {
     });
 
     socket.on("connect", () => {
-        console.log("✅ Terhubung ke socket server BC! (Socket ID: " + socket.id + ")");
-        console.log(`🔑 Mengirim permintaan login untuk "${CONFIG.accountName}"...`);
+        console.log("✅ Connected to BC socket server! (Socket ID: " + socket.id + ")");
+        console.log(`🔑 Sending login request for "${CONFIG.accountName}"...`);
 
         socket.emit("AccountLogin", {
             AccountName: CONFIG.accountName,
@@ -88,47 +131,46 @@ async function startBot() {
 
     socket.on("LoginResponse", (res) => {
         if (typeof res === "string") {
-            console.error("❌ Login gagal. Respon server:", res);
+            console.error("❌ Login failed. Server response:", res);
             return;
         }
 
         if (res && res.AccountName) {
             botPlayer = res;
-            console.log(`🎉 Login Berhasil!`);
-            console.log(`   Nama Karakter : ${res.Name || res.AccountName}`);
-            console.log(`   Member Number : #${res.MemberNumber}`);
+            console.log(`🎉 Login Successful!`);
+            console.log(`   Character Name : ${res.Name || res.AccountName}`);
+            console.log(`   Member Number  : #${res.MemberNumber}`);
             console.log("----------------------------------------------------------");
-            console.log(`🚪 Memulai pencarian dan bergabung ke ruangan private "${CONFIG.targetRoom}"...`);
-            console.log(`💡 PENTING: Pada room private Anda di game, pastikan nomor #${res.MemberNumber} (${res.Name || res.AccountName}) sudah ditambahkan ke Whitelist / Admin list!`);
+            console.log(`🚪 Joining private room "${CONFIG.targetRoom}"...`);
+            console.log(`💡 NOTE: Ensure member #${res.MemberNumber} (${res.Name || res.AccountName}) is on the Whitelist/Admin list of the room!`);
             console.log("----------------------------------------------------------");
             
             joinTargetRoom(socket);
         }
     });
 
-    // Menangani respon jika room belum ditemukan / terkunci
     socket.on("ChatRoomSearchResponse", (data) => {
         if (isInRoom) return;
 
         if (data === "CannotFindRoom" || data === "RoomLocked") {
-            process.stdout.write(`\r⏳ Menunggu akses ke ruangan "${CONFIG.targetRoom}" (Respon: ${data}). Mencoba kembali... `);
+            process.stdout.write(`\r⏳ Waiting to access room "${CONFIG.targetRoom}" (Response: ${data}). Retrying... `);
             scheduleRetryJoin(socket, 5000);
         } else if (data === "RoomFull") {
-            console.warn(`\n⚠️ Ruangan "${CONFIG.targetRoom}" penuh. Mencoba kembali dalam 8 detik...`);
+            console.warn(`\n⚠️ Room "${CONFIG.targetRoom}" is currently full. Retrying in 8s...`);
             scheduleRetryJoin(socket, 8000);
         } else if (data === "JoinedRoom") {
-            console.log(`\n✅ Respon server: Berhasil bergabung ke room!`);
+            console.log(`\n✅ Server response: Successfully joined room!`);
         } else {
             console.log(`\nℹ️ ChatRoomSearchResponse:`, data);
         }
     });
 
-    // Fitur Beep / Invite: Jika pemilik mengirim beep kepada bot dari dalam room, bot langsung bergabung
+    // Beep / Invite Listener: If owner sends a beep to the bot from inside the room, bot joins immediately
     socket.on("AccountBeep", (data) => {
         if (!data || typeof data !== "object") return;
-        console.log(`\n📩 Menerima Beep/Panggilan dari: ${data.MemberName} (#${data.MemberNumber})`);
+        console.log(`\n📩 Received Beep from: ${data.MemberName} (#${data.MemberNumber})`);
         if (data.ChatRoomName) {
-            console.log(`🚪 Beep mengundang ke Chat Room: "${data.ChatRoomName}"! Mengarahkan bot masuk...`);
+            console.log(`🚪 Beep invited to room: "${data.ChatRoomName}"! Navigating bot...`);
             CONFIG.targetRoom = data.ChatRoomName;
             joinTargetRoom(socket);
         }
@@ -146,45 +188,58 @@ async function startBot() {
 
         const charList = Array.isArray(data.Character) ? data.Character : [];
         console.log(`\n==========================================================`);
-        console.log(`📍 Karakter bot BERHASIL BERADA di Ruangan: "${data.Name}"!`);
-        console.log(`👥 Pemain di room (${charList.length}): ${charList.map(c => c.Name).join(", ") || "Hanya bot"}`);
-        console.log(`👑 Admin Room: ${Array.isArray(data.Admin) ? data.Admin.join(", ") : "Tidak ada"}`);
+        console.log(`📍 Bot character IS NOW IN ROOM: "${data.Name}"!`);
+        console.log(`👥 Players in room (${charList.length}): ${charList.map(c => c.Name).join(", ") || "Only bot"}`);
+        console.log(`👑 Room Admins: ${Array.isArray(data.Admin) ? data.Admin.join(", ") : "None"}`);
         
         const activeMusic = data.Custom && data.Custom.MusicURL;
-        console.log(`🎵 Status Musik Room: ${activeMusic ? activeMusic : "Belum aktif (Gunakan perintah !radio untuk menyalakan)"}`);
+        console.log(`🎵 Current Room Music: ${activeMusic ? activeMusic : "None active"}`);
         console.log(`==========================================================\n`);
 
-        // Sapaan hangat saat baru masuk room
         setTimeout(() => {
             sendRoomEmote(
                 socket,
-                `* 🎵 [DJ ${botPlayer.Name || CONFIG.accountName}] Siap menyiarkan musik di ${data.Name}! Ketik !help untuk memilih genre lagu yang ingin didengar bersama 🎧`
+                `* 🎵 [DJ ${botPlayer.Name || CONFIG.accountName}] Ready to play synced music in ${data.Name}! Type !help to see commands & radio genres 🎧`
             );
         }, 1500);
 
-        // Sambut pemain lain yang ada
         charList.forEach(c => {
             if (c.MemberNumber !== botPlayer.MemberNumber && !knownCharacters.has(c.MemberNumber)) {
                 knownCharacters.add(c.MemberNumber);
             }
         });
 
-        // Mulai getaran ekspresi wajah menikmati musik
         startVibeAnimation(socket);
+    });
+
+    // Greet new players when they join
+    socket.on("ChatRoomSyncMemberJoin", (data) => {
+        if (!data || !data.Character) return;
+        const newChar = data.Character;
+        if (botPlayer && newChar.MemberNumber === botPlayer.MemberNumber) return;
+        if (!knownCharacters.has(newChar.MemberNumber)) {
+            knownCharacters.add(newChar.MemberNumber);
+            setTimeout(() => {
+                sendRoomEmote(
+                    socket,
+                    `* 👋 [DJ ${botPlayer.Name || CONFIG.accountName}] Welcome to the room, ${newChar.Name || 'friend'}! Feel free to request music using !yt <song or youtube url> 🎶`
+                );
+            }, 2000);
+        }
     });
 
     socket.on("ChatRoomUpdateResponse", (res) => {
         if (res === "Updated") {
-            console.log("✅ [Server] Perubahan room administration (Musik/Pengaturan) BERHASIL DITERIMA oleh server game!");
+            console.log("✅ [Server] Room administration update (Music/Settings) ACCEPTED by server!");
         } else {
-            console.warn("⚠️ [Server] Update room respon:", res);
+            console.warn("⚠️ [Server] Room update response:", res);
         }
     });
 
     socket.on("ChatRoomSyncRoomProperties", (data) => {
         if (data && currentRoomData) {
             Object.assign(currentRoomData, data);
-            console.log(`🔄 [Room Sync] Data room disinkronisasi ke semua pemain! MusicURL: "${data.Custom?.MusicURL || 'Kosong'}"`);
+            console.log(`🔄 [Room Sync] Room properties synced to all players! MusicURL: "${data.Custom?.MusicURL || 'None'}"`);
         }
     });
 
@@ -196,7 +251,6 @@ async function startBot() {
 
         if (botPlayer && sender === botPlayer.MemberNumber) return;
 
-        // Catat pemain yang aktif chat
         if (sender && !knownCharacters.has(sender)) {
             knownCharacters.add(sender);
         }
@@ -210,7 +264,7 @@ async function startBot() {
         handleRoomCommand(socket, content, sender);
     });
 
-    // Auto-rejoin timer jika bot terlempar keluar dari room
+    // Auto-rejoin timer if disconnected from room
     setInterval(() => {
         if (botPlayer && !isInRoom) {
             joinTargetRoom(socket);
@@ -221,7 +275,7 @@ async function startBot() {
         isInRoom = false;
         currentRoomData = null;
         stopVibeAnimation();
-        console.warn(`\n⚠️ Terputus dari game server (${reason}). Menyambung ulang...`);
+        console.warn(`\n⚠️ Disconnected from game server (${reason}). Reconnecting...`);
     });
 
     socket.on("connect_error", (err) => {
@@ -250,13 +304,12 @@ function isBotAdmin() {
 }
 
 /**
- * Menyetel musik room resmi Bondage Club via Custom.MusicURL
- * Server akan menyiarkan ChatRoomSync ke seluruh pemain di room,
- * sehingga audio otomatis terputar di browser/device semua orang.
+ * Broadcasts music to room via native BC Room Customization (Custom.MusicURL).
+ * Must use MemberNumber: 0 in ChatRoomAdmin so game server accepts the update.
  */
-function setRoomMusic(socket, musicUrl, title = "") {
+function setRoomMusic(socket, musicUrl, title = "", duration = 0, trackInfo = null) {
     if (!currentRoomData) {
-        console.warn("⚠️ Gagal menyetel musik: Bot belum berada di dalam room.");
+        console.warn("⚠️ Failed to set room music: Bot is not currently inside a room.");
         return;
     }
 
@@ -266,16 +319,15 @@ function setRoomMusic(socket, musicUrl, title = "") {
     if (!isBotAdmin()) {
         sendRoomEmote(
             socket,
-            `* ⚠️ [DJ ${myName}] Saya butuh hak Admin room untuk bisa menyetel musik agar didengar SEMUA ORANG di room. Mohon berikan hak Admin kepada ${myName} (#${myId}) ya!`
+            `* ⚠️ [DJ ${myName}] I need Room Admin privileges to broadcast music to EVERYONE in the room. Please grant Admin to ${myName} (#${myId})!`
         );
         return;
     }
 
-    // Pastikan URL berakhiran .mp3 atau .mp4 sesuai aturan server BC
     if (musicUrl && !musicUrl.toLowerCase().includes(".mp3") && !musicUrl.toLowerCase().includes(".mp4")) {
         sendRoomEmote(
             socket,
-            `* ⚠️ [DJ ${myName}] Server game hanya mengizinkan link audio dengan format .mp3 atau .mp4!`
+            `* ⚠️ [DJ ${myName}] The game server only allows audio links ending with .mp3 or .mp4 format!`
         );
         return;
     }
@@ -301,7 +353,7 @@ function setRoomMusic(socket, musicUrl, title = "") {
         },
     };
 
-    console.log(`📻 [Room Music Broadcast] Memperbarui MusicURL room ke: "${musicUrl}"`);
+    console.log(`📻 [Room Music Broadcast] Updating room MusicURL to: "${musicUrl}"`);
     socket.emit("ChatRoomAdmin", {
         MemberNumber: 0,
         Room: updatedRoom,
@@ -311,15 +363,65 @@ function setRoomMusic(socket, musicUrl, title = "") {
     changeFaceExpression(socket, "Eyes", "Happy");
     changeFaceExpression(socket, "Mouth", "Smile");
 
+    if (trackEndTimer) {
+        clearTimeout(trackEndTimer);
+        trackEndTimer = null;
+    }
+
     if (musicUrl) {
+        currentTrack = trackInfo || {
+            title: title || musicUrl,
+            directUrl: musicUrl,
+            duration: duration || 0,
+            requestedBy: "DJ",
+            startedAt: Date.now(),
+        };
+
         sendRoomEmote(
             socket,
-            `* 🎧 [DJ ${myName}] Memutar musik room untuk SEMUA ORANG: ${title || musicUrl} 🎶 (Tersinkronisasi otomatis di speaker semua pemain)`
+            `* 🎧 [DJ ${myName}] Now playing for EVERYONE in the room: ${title || musicUrl} 🎶 (Auto-synced to all players' speakers)`
+        );
+
+        if (duration && duration > 0) {
+            console.log(`[Playback Timer] Track duration: ${duration}s. Scheduling next queue track in ${duration + 3}s...`);
+            trackEndTimer = setTimeout(() => {
+                playNextInQueue(socket);
+            }, (duration + 3) * 1000);
+        }
+    } else {
+        currentTrack = null;
+        sendRoomEmote(
+            socket,
+            `* 🔇 [DJ ${myName}] Room music has been stopped for all players.`
+        );
+    }
+}
+
+/**
+ * Plays next song in queue when previous finishes or is skipped.
+ */
+function playNextInQueue(socket) {
+    if (trackEndTimer) {
+        clearTimeout(trackEndTimer);
+        trackEndTimer = null;
+    }
+
+    const myName = botPlayer ? botPlayer.Name : CONFIG.accountName;
+
+    if (songQueue.length > 0) {
+        const nextSong = songQueue.shift();
+        console.log(`[Queue] Playing next track: "${nextSong.title}" (Requested by Member #${nextSong.requestedBy})`);
+        setRoomMusic(socket, nextSong.directUrl, `YouTube: ${nextSong.title}`, nextSong.duration, nextSong);
+        sendRoomEmote(
+            socket,
+            `* 🎶 [DJ ${myName}] Up next from queue: "${nextSong.title}" (Requested by Member #${nextSong.requestedBy})!`
         );
     } else {
+        currentTrack = null;
+        console.log(`[Queue] Queue is now empty.`);
         sendRoomEmote(
             socket,
-            `* 🔇 [DJ ${myName}] Musik room telah dimatikan untuk semua pemain.`
+            `* 🎵 [DJ ${myName}] The song queue is now empty. Feel free to request songs with !yt <title or link> 🎧`
         );
     }
 }
@@ -339,15 +441,12 @@ function changeFaceExpression(socket, group, expression) {
     });
 }
 
-let isConverting = false;
-
 /**
- * Mengunggah file MP3 hasil konversi ke tmpfile.link (https://tmpfile.link/index-id)
- * Layanan ini menghasilkan direct link berkecepatan tinggi di Cloudflare R2
- * yang berakhiran .mp3 dan sangat cocok dengan limit URL Bondage Club.
+ * Uploads converted MP3 to tmpfile.link (https://tmpfile.link/index-id)
+ * Generates direct high-speed Cloudflare R2 links ending in .mp3
  */
 async function uploadToTmpfileLink(buffer, filename = "track.mp3") {
-    console.log(`[Upload tmpfile.link] Mengunggah ${filename} (${buffer.length} bytes)...`);
+    console.log(`[Upload tmpfile.link] Uploading ${filename} (${buffer.length} bytes)...`);
     const blob = new Blob([buffer], { type: "audio/mpeg" });
     const formData = new FormData();
     formData.append("file", blob, filename);
@@ -368,17 +467,17 @@ async function uploadToTmpfileLink(buffer, filename = "track.mp3") {
 
     const data = await res.json();
     if (!data || !data.downloadLink) {
-        throw new Error("Respon tidak valid dari tmpfile.link: " + JSON.stringify(data));
+        throw new Error("Invalid response from tmpfile.link: " + JSON.stringify(data));
     }
 
     return data.downloadLink;
 }
 
 /**
- * Fallback uploader jika tmpfile.link sedang sibuk/down
+ * Fallback uploader if tmpfile.link is unavailable
  */
 async function uploadToTmpfilesOrg(buffer, filename = "track.mp3") {
-    console.log(`[Upload tmpfiles.org] Mengunggah fallback ${filename} (${buffer.length} bytes)...`);
+    console.log(`[Upload tmpfiles.org] Uploading fallback ${filename} (${buffer.length} bytes)...`);
     const blob = new Blob([buffer], { type: "audio/mpeg" });
     const formData = new FormData();
     formData.append("file", blob, filename);
@@ -391,23 +490,23 @@ async function uploadToTmpfilesOrg(buffer, filename = "track.mp3") {
     if (data && data.data && data.data.url) {
         return data.data.url.replace("tmpfiles.org/", "tmpfiles.org/dl/");
     }
-    throw new Error("Gagal mengunggah fallback ke tmpfiles.org");
+    throw new Error("Failed to upload fallback to tmpfiles.org");
 }
 
 async function uploadAudio(buffer, filename) {
     try {
         return await uploadToTmpfileLink(buffer, filename);
     } catch (err) {
-        console.warn("[Upload Warning] tmpfile.link gagal (" + err.message + "), mencoba fallback tmpfiles.org...");
+        console.warn("[Upload Warning] tmpfile.link failed (" + err.message + "), trying fallback tmpfiles.org...");
         return await uploadToTmpfilesOrg(buffer, filename);
     }
 }
 
 /**
- * Mencoba konversi via backend ytmp3.gg (https://media.ytmp3.gg/tools/youtube-video-downloader/cvswxo)
+ * Attempts conversion via ytmp3.gg backend (https://media.ytmp3.gg/tools/youtube-video-downloader/cvswxo)
  */
 async function convertViaYtmp3(youtubeUrl) {
-    console.log(`[ytmp3.gg] Mencoba konversi via API ytmp3: ${youtubeUrl}`);
+    console.log(`[ytmp3.gg] Attempting API conversion: ${youtubeUrl}`);
     const res = await fetch("https://ytdl.convert1s.com/api/v2/download", {
         method: "POST",
         headers: {
@@ -424,12 +523,11 @@ async function convertViaYtmp3(youtubeUrl) {
 
     if (!res.ok) throw new Error(`HTTP Status ${res.status}`);
     const job = await res.json();
-    if (!job || !job.statusUrl) throw new Error("statusUrl tidak ditemukan");
+    if (!job || !job.statusUrl) throw new Error("statusUrl not found");
 
     const title = job.title || "YouTube Audio";
     const statusUrl = job.statusUrl;
 
-    // Polling status tugas ytmp3 hingga 12 detik
     for (let i = 0; i < 8; i++) {
         await new Promise(r => setTimeout(r, 1500));
         const sRes = await fetch(statusUrl, {
@@ -442,55 +540,26 @@ async function convertViaYtmp3(youtubeUrl) {
         if (!sRes.ok) continue;
         const sData = await sRes.json();
         if (sData.downloadUrl) {
-            console.log(`[ytmp3.gg] Audio selesai dikonversi! URL: ${sData.downloadUrl}`);
+            console.log(`[ytmp3.gg] Audio conversion complete! URL: ${sData.downloadUrl}`);
             const aRes = await fetch(sData.downloadUrl);
             const buf = await aRes.arrayBuffer();
-            return { title, buffer: Buffer.from(buf) };
+            return { title, buffer: Buffer.from(buf), duration: job.duration || 0 };
         }
         if (sData.status === "error") throw new Error("Status error: " + (sData.error || sData.message));
     }
-    throw new Error("Antrian ytmp3.gg membutuhkan waktu lebih dari 12 detik");
+    throw new Error("ytmp3.gg queue took longer than 12 seconds");
 }
 
 /**
- * Menghapus seluruh file lagu sementara di direktori lokal (temp/)
- * agar tidak memakan ruang penyimpanan hard disk komputer pengguna.
- */
-function cleanTempFiles(patternOrFileId = null) {
-    const tempDir = path.join(__dirname, "temp");
-    if (!fs.existsSync(tempDir)) return;
-    try {
-        const files = fs.readdirSync(tempDir);
-        for (const f of files) {
-            if (!patternOrFileId || f.includes(patternOrFileId)) {
-                try {
-                    const fullPath = path.join(tempDir, f);
-                    if (fs.statSync(fullPath).isFile()) {
-                        fs.unlinkSync(fullPath);
-                        console.log(`🧹 [Pembersihan Otomatis] Menghapus file lokal: ${f}`);
-                    }
-                } catch (e) {
-                    // Abaikan jika file sedang terkunci sesaat
-                }
-            }
-        }
-    } catch (err) {
-        console.warn("[Pembersihan Temp Gagal]:", err.message);
-    }
-}
-
-/**
- * Konversi lokal via yt-dlp + ffmpeg jika ytmp3 sedang sibuk atau URL berupa pencarian judul
+ * Fast local conversion via yt-dlp + ffmpeg directly in converted_tracks/ folder
  */
 function convertViaYtDlp(queryOrUrl) {
     return new Promise((resolve, reject) => {
-        const tempDir = path.join(__dirname, "temp");
-        if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
-
-        const fileId = "yt_" + Date.now();
-        const outputPath = path.join(tempDir, `${fileId}.%(ext)s`);
-        const finalMp3Path = path.join(tempDir, `${fileId}.mp3`);
-        const titleFilePath = path.join(tempDir, `${fileId}_title.txt`);
+        const fileId = "track_" + Date.now();
+        const outputPath = path.join(CONVERT_DIR, `${fileId}.%(ext)s`);
+        const finalMp3Path = path.join(CONVERT_DIR, `${fileId}.mp3`);
+        const titleFilePath = path.join(CONVERT_DIR, `${fileId}_title.txt`);
+        const durationFilePath = path.join(CONVERT_DIR, `${fileId}_duration.txt`);
 
         const target = (queryOrUrl.startsWith("http://") || queryOrUrl.startsWith("https://")) 
             ? queryOrUrl 
@@ -502,16 +571,19 @@ function convertViaYtDlp(queryOrUrl) {
             "--ffmpeg-location", ffmpegPath,
             "-x", "--audio-format", "mp3",
             "--audio-quality", "5",
-            "--max-filesize", "25M",
+            "--max-filesize", "30M",
             "--no-playlist",
             "--print-to-file", "%(title)s", titleFilePath,
+            "--print-to-file", "%(duration)s", durationFilePath,
             "-o", outputPath,
             target
         ];
 
-        console.log(`[yt-dlp] Mengonversi "${queryOrUrl}" secara lokal...`);
+        console.log(`[yt-dlp] Converting "${queryOrUrl}" in folder: ${CONVERT_DIR}...`);
         execFile("python", args, { timeout: 75000 }, (err, stdout, stderr) => {
             let title = queryOrUrl;
+            let duration = 0;
+
             if (fs.existsSync(titleFilePath)) {
                 try {
                     title = fs.readFileSync(titleFilePath, "utf8").trim() || queryOrUrl;
@@ -519,27 +591,35 @@ function convertViaYtDlp(queryOrUrl) {
                 } catch(_) {}
             }
 
+            if (fs.existsSync(durationFilePath)) {
+                try {
+                    const durRaw = fs.readFileSync(durationFilePath, "utf8").trim();
+                    duration = parseInt(durRaw, 10) || 0;
+                    fs.unlinkSync(durationFilePath);
+                } catch(_) {}
+            }
+
             if (err) {
-                cleanTempFiles(fileId);
+                cleanLocalFiles(fileId);
                 return reject(err);
             }
 
             if (!fs.existsSync(finalMp3Path)) {
-                cleanTempFiles(fileId);
-                return reject(new Error("File MP3 tidak ditemukan setelah konversi."));
+                cleanLocalFiles(fileId);
+                return reject(new Error("Converted MP3 file was not found."));
             }
 
             const buffer = fs.readFileSync(finalMp3Path);
-            // Segera hapus file mp3 dan artefak sementara fileId dari disk lokal
-            cleanTempFiles(fileId);
-            resolve({ title, buffer });
+            // Immediately clean up temporary local audio file after reading into memory
+            cleanLocalFiles(fileId);
+            resolve({ title, buffer, duration });
         });
     });
 }
 
 /**
- * Fungsi utama konversi YouTube -> MP3 -> tmpfile.link
- * dan otomatis menghapus seluruh file audio dari penyimpanan lokal.
+ * Main YouTube -> MP3 -> tmpfile.link pipeline
+ * Ensures converted audio file is deleted from local disk after upload.
  */
 async function convertYoutubeToMp3(queryOrUrl) {
     let result = null;
@@ -550,7 +630,7 @@ async function convertYoutubeToMp3(queryOrUrl) {
             try {
                 result = await convertViaYtmp3(queryOrUrl);
             } catch (e) {
-                console.log(`[YouTube] Info ytmp3.gg (${e.message}), beralih otomatis ke extractor cepat...`);
+                console.log(`[YouTube] Info ytmp3.gg (${e.message}), switching automatically to fast local extractor...`);
             }
         }
 
@@ -562,15 +642,15 @@ async function convertYoutubeToMp3(queryOrUrl) {
         const filename = `${safeTitle}_${Date.now()}.mp3`;
         const directUrl = await uploadAudio(result.buffer, filename);
 
-        // Hapus sisa file lokal dan bersihkan memori buffer
+        // Free buffer memory and guarantee converted_tracks is clear
         result.buffer = null;
-        cleanTempFiles();
+        cleanLocalFiles();
 
-        console.log(`[YouTube] Berhasil! Judul: "${result.title}", Direct URL: ${directUrl}`);
-        console.log(`🧹 [Storage] File lokal lagu telah berhasil dihapus dari komputer.`);
-        return { title: result.title, directUrl };
+        console.log(`[YouTube] Success! Title: "${result.title}", Direct URL: ${directUrl}, Duration: ${result.duration}s`);
+        console.log(`🧹 [Storage] Local converted file for "${result.title}" has been deleted from ${CONVERT_DIR}.`);
+        return { title: result.title, directUrl, duration: result.duration || 0 };
     } catch (err) {
-        cleanTempFiles();
+        cleanLocalFiles();
         throw err;
     }
 }
@@ -584,48 +664,68 @@ function handleRoomCommand(socket, text, sender) {
         changeFaceExpression(socket, "Eyes", "Wink");
         sendRoomEmote(
             socket,
-            `* 🎵 [DJ ${myName}]: Karakter mandiri yang memutar lagu room untuk semua orang! Perintah: !yt <link/judul> | !radio <genre> | !play <url-mp3> | !stop | !np | !dance | !sing | !admin`
+            `* 🎵 [DJ ${myName}]: Standalone DJ playing synced room music for everyone! Commands: !yt <song/link> | !queue | !skip | !clear | !radio <genre> | !stop | !np | !whitelist <id> | !dance | !sing`
         );
         setTimeout(() => {
             sendRoomEmote(
                 socket,
-                `* 📻 Pilihan Genre Radio: lofi, synth, chillsynth, pop, dance, rock, hiphop, jazz`
+                `* 📻 Radio Genres: lofi, synth, chillsynth, pop, dance, rock, hiphop, jazz. Example: !radio synth`
             );
         }, 1200);
     } else if (cmd === "!yt" || cmd === "!play") {
-        // Ekstrak URL jika ada di dalam teks pesan (membersihkan tanda kurung atau simbol di sekitarnya)
         const urlMatch = text.match(/https?:\/\/[^\s\)\>\]]+/i);
         let extractedUrl = urlMatch ? urlMatch[0].replace(/[\)\>\]\.\,\'\"\`]+$/, "") : null;
 
-        // Ambil teks setelah kata perintah
         const rawAfterCmd = text.slice(text.indexOf(parts[0]) + parts[0].length).trim();
         const cleanQuery = rawAfterCmd.replace(/^[\(\[\<\"\']+|[\)\]\>\"\']+$/g, "").trim();
 
-        // Cek apakah query merupakan link direct MP3/MP4 atau link YouTube / pencarian lagu
         const isDirectAudio = extractedUrl && (extractedUrl.toLowerCase().includes(".mp3") || extractedUrl.toLowerCase().includes(".mp4"));
         const isYoutube = (extractedUrl && (extractedUrl.includes("youtube.com") || extractedUrl.includes("youtu.be"))) || cmd === "!yt" || (!isDirectAudio && cleanQuery.length > 0);
 
         if (!cleanQuery && !extractedUrl) {
             sendRoomEmote(
                 socket,
-                `* ⚠️ [DJ ${myName}] Masukkan link YouTube, judul lagu, atau URL .mp3! Contoh: !yt https://youtu.be/... atau !yt armada pergi pagi`
+                `* ⚠️ [DJ ${myName}] Please provide a YouTube link, song title, or .mp3 URL! Example: !yt https://youtu.be/... or !yt linkin park numb`
             );
             return;
         }
 
-        // Jika link adalah direct MP3/MP4, langsung setel ke room
+        // Direct MP3 URL
         if (isDirectAudio && cmd === "!play") {
-            setRoomMusic(socket, extractedUrl, `Lagu (${path.basename(new URL(extractedUrl).pathname)})`);
+            if (!currentTrack) {
+                setRoomMusic(socket, extractedUrl, `Custom Audio (${path.basename(new URL(extractedUrl).pathname)})`);
+            } else {
+                if (songQueue.length >= MAX_QUEUE) {
+                    sendRoomEmote(socket, `* ⚠️ [DJ ${myName}] The song queue is full! Maximum ${MAX_QUEUE} songs allowed.`);
+                    return;
+                }
+                const trackTitle = `Custom Audio (${path.basename(new URL(extractedUrl).pathname)})`;
+                songQueue.push({
+                    title: trackTitle,
+                    directUrl: extractedUrl,
+                    duration: 0,
+                    requestedBy: sender,
+                });
+                sendRoomEmote(socket, `* 📋 [DJ ${myName}] Added to queue (#${songQueue.length}/${MAX_QUEUE}): "${trackTitle}" (Requested by Member #${sender}) 🎶`);
+            }
             return;
         }
 
-        // Jika YouTube link atau judul pencarian lagu
+        // YouTube track or search query
         const targetSong = extractedUrl || cleanQuery;
+
+        if (currentTrack && songQueue.length >= MAX_QUEUE) {
+            sendRoomEmote(
+                socket,
+                `* ⚠️ [DJ ${myName}] The song queue is full! Maximum ${MAX_QUEUE} songs allowed.`
+            );
+            return;
+        }
 
         if (isConverting) {
             sendRoomEmote(
                 socket,
-                `* ⏳ [DJ ${myName}] Sedang ada lagu yang diproses. Mohon tunggu sebentar ya!`
+                `* ⏳ [DJ ${myName}] Another song is currently converting. Please wait a few seconds!`
             );
             return;
         }
@@ -634,13 +734,35 @@ function handleRoomCommand(socket, text, sender) {
         changeFaceExpression(socket, "Eyes", "Thinking");
         sendRoomEmote(
             socket,
-            `* ⏳ [DJ ${myName}] Sedang mengonversi audio YouTube ke MP3 room... Mohon tunggu beberapa detik! 🎧`
+            `* ⏳ [DJ ${myName}] Converting audio for "${targetSong}"... Please wait a few seconds! 🎧`
         );
 
         convertYoutubeToMp3(targetSong)
-            .then(({ title, directUrl }) => {
+            .then(({ title, directUrl, duration }) => {
                 isConverting = false;
-                setRoomMusic(socket, directUrl, `YouTube: ${title}`);
+
+                if (!currentTrack) {
+                    // Nothing playing: play immediately
+                    setRoomMusic(socket, directUrl, `YouTube: ${title}`, duration, {
+                        title,
+                        directUrl,
+                        duration,
+                        requestedBy: sender,
+                    });
+                } else {
+                    // Something is already playing: add to queue
+                    songQueue.push({
+                        title,
+                        directUrl,
+                        duration,
+                        requestedBy: sender,
+                    });
+                    changeFaceExpression(socket, "Eyes", "Happy");
+                    sendRoomEmote(
+                        socket,
+                        `* 📋 [DJ ${myName}] Added to queue (#${songQueue.length}/${MAX_QUEUE}): "${title}" (Requested by Member #${sender}) 🎶`
+                    );
+                }
             })
             .catch((err) => {
                 isConverting = false;
@@ -648,33 +770,90 @@ function handleRoomCommand(socket, text, sender) {
                 console.error("[YouTube Conversion Error]", err);
                 sendRoomEmote(
                     socket,
-                    `* ⚠️ [DJ ${myName}] Gagal mengonversi lagu YouTube tersebut. Pastikan link dapat diakses!`
+                    `* ⚠️ [DJ ${myName}] Failed to convert that YouTube track. Please make sure the link is accessible!`
                 );
             });
+    } else if (cmd === "!queue" || cmd === "!q") {
+        if (!currentTrack && songQueue.length === 0) {
+            sendRoomEmote(
+                socket,
+                `* 📋 [DJ ${myName}] The song queue is currently empty! Use !yt <song/link> to request a track.`
+            );
+            return;
+        }
+
+        let lines = [`* 📋 [DJ ${myName}] Queue Status (${songQueue.length}/${MAX_QUEUE}):`];
+        if (currentTrack) {
+            lines.push(`▶️ [Now Playing]: "${currentTrack.title}" (Requested by Member #${currentTrack.requestedBy || 'DJ'})`);
+        }
+        if (songQueue.length > 0) {
+            lines.push(`📑 [Upcoming Tracks]:`);
+            songQueue.forEach((item, idx) => {
+                lines.push(`${idx + 1}. "${item.title}" (Requested by #${item.requestedBy})`);
+            });
+        } else {
+            lines.push(`(No more tracks in queue)`);
+        }
+        sendRoomEmote(socket, lines.join("\n"));
+    } else if (cmd === "!skip" || cmd === "!next") {
+        if (!currentTrack && songQueue.length === 0) {
+            sendRoomEmote(
+                socket,
+                `* ⚠️ [DJ ${myName}] No song is currently playing to skip!`
+            );
+            return;
+        }
+        sendRoomEmote(
+            socket,
+            `* ⏭️ [DJ ${myName}] Track skipped by Member #${sender}!`
+        );
+        playNextInQueue(socket);
+    } else if (cmd === "!clear") {
+        const count = songQueue.length;
+        songQueue.length = 0;
+        sendRoomEmote(
+            socket,
+            `* 🗑️ [DJ ${myName}] Cleared ${count} song(s) from the queue (Requested by Member #${sender}).`
+        );
     } else if (cmd === "!radio") {
         const key = (parts[1] || "").toLowerCase();
         if (STATIONS[key]) {
             currentStation = STATIONS[key];
+            songQueue.length = 0;
+            if (trackEndTimer) {
+                clearTimeout(trackEndTimer);
+                trackEndTimer = null;
+            }
             setRoomMusic(socket, currentStation.url, currentStation.name);
         } else {
             sendRoomEmote(
                 socket,
-                `* ⚠️ [DJ ${myName}] Genre tersedia: lofi, synth, chillsynth, pop, dance, rock, hiphop, jazz. Contoh: !radio synth`
+                `* ⚠️ [DJ ${myName}] Available genres: lofi, synth, chillsynth, pop, dance, rock, hiphop, jazz. Example: !radio synth`
             );
         }
     } else if (cmd === "!stop") {
+        songQueue.length = 0;
+        currentStation = null;
+        if (trackEndTimer) {
+            clearTimeout(trackEndTimer);
+            trackEndTimer = null;
+        }
         setRoomMusic(socket, "", "");
     } else if (cmd === "!np") {
-        const activeUrl = currentRoomData && currentRoomData.Custom && currentRoomData.Custom.MusicURL;
-        if (activeUrl) {
+        if (currentTrack) {
             sendRoomEmote(
                 socket,
-                `* 🎵 [DJ ${myName}] Sedang diputar di room: ${currentStation ? currentStation.name : activeUrl} 🎧`
+                `* 🎵 [DJ ${myName}] Now playing: "${currentTrack.title}" (Requested by Member #${currentTrack.requestedBy || 'DJ'}) 🎧`
+            );
+        } else if (currentStation) {
+            sendRoomEmote(
+                socket,
+                `* 🎵 [DJ ${myName}] Now playing 24/7 radio: ${currentStation.name} 🎧`
             );
         } else {
             sendRoomEmote(
                 socket,
-                `* 🔇 [DJ ${myName}] Saat ini tidak ada musik yang sedang diputar di room. Ketik !radio <genre> untuk memutar!`
+                `* 🔇 [DJ ${myName}] No music is currently playing in the room. Type !yt <song> or !radio <genre> to start!`
             );
         }
     } else if (cmd === "!dance") {
@@ -682,31 +861,72 @@ function handleRoomCommand(socket, text, sender) {
         changeFaceExpression(socket, "Mouth", "Smile");
         sendRoomEmote(
             socket,
-            `* 💃 ${myName} menari dan berdisko energik di tengah room mengikuti irama lagu! 🎶✨`
+            `* 💃 ${myName} grooves and dances energetically to the rhythm in the DJ booth! 🎶✨`
         );
     } else if (cmd === "!sing") {
         changeFaceExpression(socket, "Eyes", "Happy");
         changeFaceExpression(socket, "Mouth", "Sing");
         sendRoomEmote(
             socket,
-            `* 🎤 ${myName} bernyanyi merdu di mikrofon DJ: "Feel the beat, let the music take control~!" 🎵`
+            `* 🎤 ${myName} sings into the DJ microphone: "Feel the beat, let the music flow through the room~!" 🎵`
         );
     } else if (cmd === "!admin") {
+        sendRoomEmote(
+            socket,
+            `* ⚠️ [DJ ${myName}] Granting Room Admin via bot is disabled. Room Admins can add members to the room Whitelist using !whitelist <member_number>.`
+        );
+    } else if (cmd === "!whitelist" || cmd === "!wl") {
         if (!isBotAdmin()) {
-            sendRoomEmote(socket, `* ⚠️ [DJ ${myName}] Saya sendiri belum memiliki hak Admin di room ini.`);
+            sendRoomEmote(
+                socket,
+                `* ⚠️ [DJ ${myName}] I need Room Admin privileges myself to modify the room Whitelist.`
+            );
             return;
         }
-        if (sender && Array.isArray(currentRoomData.Admin) && !currentRoomData.Admin.includes(sender)) {
-            currentRoomData.Admin.push(sender);
-            socket.emit("ChatRoomAdmin", {
-                MemberNumber: 0,
-                Room: currentRoomData,
-                Action: "Update",
-            });
-            sendRoomEmote(socket, `* 👑 [DJ ${myName}] Berhasil memberikan hak Room Admin kepada Member #${sender}!`);
-        } else {
-            sendRoomEmote(socket, `* 👑 Anda sudah menjadi Admin di room ini.`);
+
+        // Only existing room admins can command the bot to whitelist members
+        const senderIsAdmin = currentRoomData && Array.isArray(currentRoomData.Admin) && currentRoomData.Admin.includes(sender);
+        if (!senderIsAdmin) {
+            sendRoomEmote(
+                socket,
+                `* ⛔ [DJ ${myName}] Permission denied! Only Room Admins can add members to the room Whitelist.`
+            );
+            return;
         }
+
+        const rawTarget = parts[1] || "";
+        const targetId = parseInt(rawTarget.replace(/[#\(\)\,\.]/g, ""), 10);
+        if (!targetId || isNaN(targetId) || targetId <= 0) {
+            sendRoomEmote(
+                socket,
+                `* ⚠️ [DJ ${myName}] Please specify a valid member number! Example: !whitelist 254143`
+            );
+            return;
+        }
+
+        if (!Array.isArray(currentRoomData.Whitelist)) {
+            currentRoomData.Whitelist = [];
+        }
+
+        if (currentRoomData.Whitelist.includes(targetId)) {
+            sendRoomEmote(
+                socket,
+                `* ℹ️ [DJ ${myName}] Member #${targetId} is already on the room Whitelist!`
+            );
+            return;
+        }
+
+        currentRoomData.Whitelist.push(targetId);
+        socket.emit("ChatRoomAdmin", {
+            MemberNumber: 0,
+            Room: currentRoomData,
+            Action: "Update",
+        });
+
+        sendRoomEmote(
+            socket,
+            `* 📜 [DJ ${myName}] Member #${targetId} has been successfully added to the room Whitelist (Authorized by Admin #${sender})!`
+        );
     }
 }
 
@@ -732,13 +952,13 @@ function stopVibeAnimation() {
 }
 
 process.on("SIGINT", () => {
-    console.log("\n🛑 Menghentikan bot & membersihkan penyimpanan lokal...");
-    cleanTempFiles();
+    console.log("\n🛑 Stopping bot & cleaning local storage...");
+    cleanLocalFiles();
     process.exit(0);
 });
 
 process.on("SIGTERM", () => {
-    cleanTempFiles();
+    cleanLocalFiles();
     process.exit(0);
 });
 
