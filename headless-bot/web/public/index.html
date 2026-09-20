@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nava Music DJ - Live Room & Music Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Background glowing ambient lights -->
+    <div class="ambient-glow glow-1"></div>
+    <div class="ambient-glow glow-2"></div>
+    <div class="ambient-glow glow-3"></div>
+
+    <div class="dashboard-wrapper">
+        <!-- Top Navigation -->
+        <header class="navbar">
+            <div class="nav-brand">
+                <div class="brand-icon">
+                    <span>🎧</span>
+                </div>
+                <div>
+                    <h1 class="brand-title">Nava Music <span class="brand-badge">DJ BOT</span></h1>
+                    <p class="brand-sub">Bondage Club Synchronized Room Audio</p>
+                </div>
+            </div>
+
+            <div class="nav-status">
+                <div class="room-pill">
+                    <span class="live-dot"></span>
+                    <span class="room-label">Room:</span>
+                    <strong id="header-room-name" class="room-name">Menghubungkan...</strong>
+                </div>
+                <div class="bot-status-pill">
+                    <span id="bot-status-indicator" class="status-indicator"></span>
+                    <span id="bot-status-text">Online</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Layout Grid -->
+        <main class="dashboard-grid">
+            <!-- Left: Now Playing & Room Info -->
+            <div class="grid-col col-main">
+                <!-- Now Playing Card -->
+                <section class="card now-playing-card">
+                    <div class="card-header">
+                        <div class="header-tag">
+                            <span class="wave-icon">
+                                <i></i><i></i><i></i><i></i><i></i>
+                            </span>
+                            <span>NOW PLAYING</span>
+                        </div>
+                        <div id="source-badge" class="badge badge-source">YouTube</div>
+                    </div>
+
+                    <div class="player-content">
+                        <!-- Vinyl Album Art / Visualizer -->
+                        <div class="vinyl-container">
+                            <div class="vinyl-disc" id="vinyl-disc">
+                                <div class="vinyl-ring"></div>
+                                <div class="vinyl-center">
+                                    <span id="vinyl-icon">🎵</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Track Information -->
+                        <div class="track-details">
+                            <h2 id="track-title" class="track-title">Tidak ada musik yang diputar</h2>
+                            <p id="track-subtitle" class="track-subtitle">Gunakan perintah !play &lt;judul/link&gt; di dalam room</p>
+
+                            <!-- Requester Information -->
+                            <div class="requester-box" id="requester-box">
+                                <span class="req-icon">👤</span>
+                                <span class="req-label">Requested by:</span>
+                                <strong id="requester-name" class="req-name">-</strong>
+                            </div>
+
+                            <!-- Progress Bar -->
+                            <div class="progress-section">
+                                <div class="progress-bar-bg">
+                                    <div id="progress-bar-fill" class="progress-bar-fill" style="width: 0%;"></div>
+                                </div>
+                                <div class="time-display">
+                                    <span id="time-current">0:00</span>
+                                    <span id="time-total">0:00</span>
+                                </div>
+                            </div>
+
+                            <!-- Optional Web Audio Player -->
+                            <div class="web-player-control">
+                                <audio id="web-audio" preload="none"></audio>
+                                <button id="btn-listen-web" class="btn-listen">
+                                    <span id="listen-icon">🔊</span>
+                                    <span id="listen-text">Dengarkan di Browser</span>
+                                </button>
+                                <span class="web-player-hint">Sinkron otomatis dengan musik room game</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Current Room & Players Card -->
+                <section class="card room-card">
+                    <div class="card-header">
+                        <div class="header-tag">
+                            <span>📍</span>
+                            <span>ROOM STATUS & MEMBERS</span>
+                        </div>
+                        <span id="member-count-badge" class="badge badge-counter">0 Pemain</span>
+                    </div>
+
+                    <div class="room-details-grid">
+                        <div class="room-meta-item">
+                            <span class="meta-label">Nama Ruangan</span>
+                            <strong id="meta-room-name" class="meta-value">-</strong>
+                        </div>
+                        <div class="room-meta-item">
+                            <span class="meta-label">Bot Character</span>
+                            <strong id="meta-bot-name" class="meta-value">Nava (#258115)</strong>
+                        </div>
+                        <div class="room-meta-item">
+                            <span class="meta-label">Total Teman</span>
+                            <strong id="meta-friends-count" class="meta-value">-</strong>
+                        </div>
+                    </div>
+
+                    <div class="players-section">
+                        <h4 class="section-title">Pemain di Dalam Ruangan:</h4>
+                        <div id="players-list" class="players-tags">
+                            <span class="player-tag empty-tag">Sedang memuat data pemain...</span>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Right: Queue List -->
+            <div class="grid-col col-queue">
+                <section class="card queue-card">
+                    <div class="card-header">
+                        <div class="header-tag">
+                            <span>📋</span>
+                            <span>UPCOMING QUEUE</span>
+                        </div>
+                        <span id="queue-counter" class="badge badge-counter">0 / 10</span>
+                    </div>
+
+                    <!-- Queue List Container -->
+                    <div id="queue-list" class="queue-list">
+                        <!-- Empty Queue State -->
+                        <div class="queue-empty">
+                            <div class="empty-icon">☕</div>
+                            <h3>Antrean Lagu Kosong</h3>
+                            <p>Ketik <code>!play judul lagu</code> atau <code>!play link youtube</code> di room chat untuk menambahkan lagu ke antrean.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Command Quick Guide -->
+                <section class="card guide-card">
+                    <div class="card-header">
+                        <div class="header-tag">
+                            <span>💡</span>
+                            <span>PERINTAH POPULER</span>
+                        </div>
+                    </div>
+                    <div class="guide-grid">
+                        <div class="guide-item">
+                            <code>!play &lt;lagu/link&gt;</code>
+                            <span>Putar / Tambah antrean</span>
+                        </div>
+                        <div class="guide-item">
+                            <code>!skip</code>
+                            <span>Lewati lagu aktif</span>
+                        </div>
+                        <div class="guide-item">
+                            <code>!radio synth</code>
+                            <span>Putar Radio 24/7</span>
+                        </div>
+                        <div class="guide-item">
+                            <code>!friend</code>
+                            <span>Tambah teman Nava</span>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>Nava Music DJ • Bondage Club Audio Broadcaster • Live Status Updates</p>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

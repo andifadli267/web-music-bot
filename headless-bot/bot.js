@@ -15,9 +15,12 @@ const {
     extractCommand,
     handleRoomCommand,
     resetQueue,
+    getQueueState,
 } = require("./handlers/commands");
 const { handleAdminWhisper } = require("./handlers/admin");
+const { startWebServer, stopWebServer } = require("./web/server");
 
+const botStartTime = Date.now();
 let botPlayer = null;
 let currentRoomData = null;
 let isInRoom = false;
@@ -25,6 +28,43 @@ let knownCharacters = new Set();
 const characterNames = new Map();
 let vibeTimer = null;
 let retryJoinTimer = null;
+
+function getBotStatus() {
+    const queueState = getQueueState();
+    const characters = (currentRoomData && Array.isArray(currentRoomData.Character))
+        ? currentRoomData.Character.map(c => ({
+            memberNumber: c.MemberNumber,
+            name: c.Name || getCharacterName(c.MemberNumber),
+        }))
+        : [];
+
+    return {
+        bot: {
+            name: botPlayer ? (botPlayer.Name || CONFIG.accountName) : CONFIG.accountName,
+            accountName: CONFIG.accountName,
+            memberNumber: botPlayer ? botPlayer.MemberNumber : null,
+            targetRoom: CONFIG.targetRoom,
+            isOnline: Boolean(botPlayer),
+            friendsCount: botPlayer && Array.isArray(botPlayer.FriendList) ? botPlayer.FriendList.length : 0,
+            uptime: Math.floor((Date.now() - botStartTime) / 1000),
+        },
+        room: {
+            name: currentRoomData ? currentRoomData.Name : CONFIG.targetRoom,
+            space: currentRoomData ? (currentRoomData.Space || CONFIG.targetSpace || "") : "",
+            isInRoom,
+            players: characters,
+            playerCount: characters.length,
+            admins: currentRoomData && Array.isArray(currentRoomData.Admin) ? currentRoomData.Admin : [],
+            musicUrl: currentRoomData && currentRoomData.Custom ? (currentRoomData.Custom.MusicURL || "") : "",
+        },
+        playback: {
+            currentTrack: queueState.currentTrack,
+            currentStation: queueState.currentStation,
+            isConverting: queueState.isConverting,
+        },
+        queue: queueState.songQueue || [],
+    };
+}
 
 function getCharacterName(memberNumber) {
     if (!memberNumber) return "Someone";
@@ -91,7 +131,10 @@ async function startBot() {
     console.log(`👤 Bot Account    : ${CONFIG.accountName}`);
     console.log(`🚪 Target Room    : "${CONFIG.targetRoom}" (Private Room)`);
     console.log(`📁 Local Storage  : ${CONVERT_DIR}`);
+    console.log(`📊 Web Dashboard  : http://localhost:${CONFIG.webPort}`);
     console.log("----------------------------------------------------------");
+
+    startWebServer(CONFIG.webPort, getBotStatus);
 
     const socket = io(CONFIG.serverUrl, {
         transports: ["websocket"],
@@ -482,11 +525,13 @@ function stopVibeAnimation() {
 
 process.on("SIGINT", () => {
     console.log("\n🛑 Stopping bot & cleaning local storage...");
+    stopWebServer();
     cleanLocalFiles();
     process.exit(0);
 });
 
 process.on("SIGTERM", () => {
+    stopWebServer();
     cleanLocalFiles();
     process.exit(0);
 });

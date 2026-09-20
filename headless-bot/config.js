@@ -24,6 +24,7 @@ const CONFIG = {
     password: process.env.BC_BOT_PASSWORD || "yondaime",
     targetRoom: process.env.BC_TARGET_ROOM || "V Main Hall",
     roomPassword: process.env.BC_ROOM_PASSWORD || "",
+    webPort: parseInt(process.env.WEB_PORT, 10) || 3000,
 };
 
 // 24/7 Radio stations in direct .mp3 stream format
