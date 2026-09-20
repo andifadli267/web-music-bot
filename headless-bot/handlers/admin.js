@@ -56,10 +56,10 @@ function parseMemberId(arg) {
 function addRoomAdmin(context, targetMember, operatorId = 0) {
     const { socket, botPlayer, currentRoomData, getCharacterName } = context;
     const targetId = parseMemberId(targetMember);
-    if (!targetId) return { success: false, message: "Member ID tidak valid." };
+    if (!targetId) return { success: false, message: "Invalid Member ID." };
 
     if (!isBotAdmin(botPlayer, currentRoomData)) {
-        return { success: false, message: "Bot belum memiliki hak Room Admin." };
+        return { success: false, message: "Bot does not have Room Admin permissions." };
     }
 
     if (!Array.isArray(currentRoomData.Admin)) currentRoomData.Admin = [];
@@ -67,7 +67,7 @@ function addRoomAdmin(context, targetMember, operatorId = 0) {
 
     const targetName = getCharacterName(targetId);
     if (currentRoomData.Admin.includes(targetId)) {
-        return { success: false, message: `Member #${targetId} (${targetName}) sudah menjadi Administrator ruangan.` };
+        return { success: false, message: `Member #${targetId} (${targetName}) is already a Room Administrator.` };
     }
 
     currentRoomData.Admin.push(targetId);
@@ -76,7 +76,7 @@ function addRoomAdmin(context, targetMember, operatorId = 0) {
 
     updateRoom(context, currentRoomData);
     console.log(`👑 [Admin Update] Member #${targetId} added to Room Admins by #${operatorId || 'Web'}.`);
-    return { success: true, message: `Member #${targetId} (${targetName}) telah ditambahkan ke Administrator ruangan.` };
+    return { success: true, message: `Member #${targetId} (${targetName}) has been added as a Room Administrator.` };
 }
 
 /**
@@ -86,27 +86,27 @@ function removeRoomAdmin(context, targetMember, operatorId = 0) {
     const { socket, botPlayer, currentRoomData, getCharacterName } = context;
     const targetId = parseMemberId(targetMember);
     const myName = botPlayer ? botPlayer.Name : CONFIG.accountName;
-    if (!targetId) return { success: false, message: "Member ID tidak valid." };
+    if (!targetId) return { success: false, message: "Invalid Member ID." };
 
     if (!isBotAdmin(botPlayer, currentRoomData)) {
-        return { success: false, message: "Bot belum memiliki hak Room Admin." };
+        return { success: false, message: "Bot does not have Room Admin permissions." };
     }
 
     if (botPlayer && targetId === botPlayer.MemberNumber) {
-        return { success: false, message: `Tidak dapat menghapus hak admin milik bot ${myName}.` };
+        return { success: false, message: `Cannot remove admin permissions of bot ${myName}.` };
     }
 
     if (!Array.isArray(currentRoomData.Admin)) currentRoomData.Admin = [];
     const idx = currentRoomData.Admin.indexOf(targetId);
     if (idx < 0) {
-        return { success: false, message: `Member #${targetId} tidak ada di daftar Administrator ruangan.` };
+        return { success: false, message: `Member #${targetId} is not in the Room Administrator list.` };
     }
 
     currentRoomData.Admin.splice(idx, 1);
     updateRoom(context, currentRoomData);
     const targetName = getCharacterName(targetId);
     console.log(`👑 [Admin Update] Member #${targetId} removed from Room Admins by #${operatorId || 'Web'}.`);
-    return { success: true, message: `Member #${targetId} (${targetName}) telah dihapus dari Administrator ruangan.` };
+    return { success: true, message: `Member #${targetId} (${targetName}) has been removed from Room Administrators.` };
 }
 
 /**
@@ -115,10 +115,10 @@ function removeRoomAdmin(context, targetMember, operatorId = 0) {
 function addRoomWhitelist(context, targetMember, operatorId = 0) {
     const { socket, botPlayer, currentRoomData, getCharacterName } = context;
     const targetId = parseMemberId(targetMember);
-    if (!targetId) return { success: false, message: "Member ID tidak valid." };
+    if (!targetId) return { success: false, message: "Invalid Member ID." };
 
     if (!isBotAdmin(botPlayer, currentRoomData)) {
-        return { success: false, message: "Bot belum memiliki hak Room Admin." };
+        return { success: false, message: "Bot does not have Room Admin permissions." };
     }
 
     if (!Array.isArray(currentRoomData.Whitelist)) currentRoomData.Whitelist = [];
@@ -126,7 +126,7 @@ function addRoomWhitelist(context, targetMember, operatorId = 0) {
 
     const targetName = getCharacterName(targetId);
     if (currentRoomData.Whitelist.includes(targetId)) {
-        return { success: false, message: `Member #${targetId} (${targetName}) sudah ada di Whitelist ruangan.` };
+        return { success: false, message: `Member #${targetId} (${targetName}) is already on the Room Whitelist.` };
     }
 
     currentRoomData.Whitelist.push(targetId);
@@ -135,7 +135,7 @@ function addRoomWhitelist(context, targetMember, operatorId = 0) {
 
     updateRoom(context, currentRoomData);
     console.log(`📜 [Whitelist Update] Member #${targetId} added to Whitelist by #${operatorId || 'Web'}.`);
-    return { success: true, message: `Member #${targetId} (${targetName}) telah ditambahkan ke Whitelist ruangan.` };
+    return { success: true, message: `Member #${targetId} (${targetName}) has been added to the Room Whitelist.` };
 }
 
 /**
@@ -144,23 +144,23 @@ function addRoomWhitelist(context, targetMember, operatorId = 0) {
 function removeRoomWhitelist(context, targetMember, operatorId = 0) {
     const { socket, botPlayer, currentRoomData, getCharacterName } = context;
     const targetId = parseMemberId(targetMember);
-    if (!targetId) return { success: false, message: "Member ID tidak valid." };
+    if (!targetId) return { success: false, message: "Invalid Member ID." };
 
     if (!isBotAdmin(botPlayer, currentRoomData)) {
-        return { success: false, message: "Bot belum memiliki hak Room Admin." };
+        return { success: false, message: "Bot does not have Room Admin permissions." };
     }
 
     if (!Array.isArray(currentRoomData.Whitelist)) currentRoomData.Whitelist = [];
     const idx = currentRoomData.Whitelist.indexOf(targetId);
     if (idx < 0) {
-        return { success: false, message: `Member #${targetId} tidak ditemukan di Whitelist ruangan.` };
+        return { success: false, message: `Member #${targetId} was not found on the Room Whitelist.` };
     }
 
     currentRoomData.Whitelist.splice(idx, 1);
     updateRoom(context, currentRoomData);
     const targetName = getCharacterName(targetId);
     console.log(`📜 [Whitelist Update] Member #${targetId} removed from Whitelist by #${operatorId || 'Web'}.`);
-    return { success: true, message: `Member #${targetId} (${targetName}) telah dihapus dari Whitelist ruangan.` };
+    return { success: true, message: `Member #${targetId} (${targetName}) has been removed from the Room Whitelist.` };
 }
 
 /**
@@ -170,18 +170,18 @@ function addRoomBan(context, targetMember, operatorId = 0) {
     const { socket, botPlayer, currentRoomData, getCharacterName } = context;
     const targetId = parseMemberId(targetMember);
     const myName = botPlayer ? botPlayer.Name : CONFIG.accountName;
-    if (!targetId) return { success: false, message: "Member ID tidak valid." };
+    if (!targetId) return { success: false, message: "Invalid Member ID." };
 
     if (!isBotAdmin(botPlayer, currentRoomData)) {
-        return { success: false, message: "Bot belum memiliki hak Room Admin." };
+        return { success: false, message: "Bot does not have Room Admin permissions." };
     }
 
     if (botPlayer && targetId === botPlayer.MemberNumber) {
-        return { success: false, message: `Tidak dapat memasukkan bot ${myName} ke daftar ban.` };
+        return { success: false, message: `Cannot ban bot ${myName}.` };
     }
 
     if (MASTER_ADMINS.has(targetId)) {
-        return { success: false, message: "Master Admin tidak dapat di-ban." };
+        return { success: false, message: "Master Admin cannot be banned." };
     }
 
     if (!Array.isArray(currentRoomData.Admin)) currentRoomData.Admin = [];
@@ -190,7 +190,7 @@ function addRoomBan(context, targetMember, operatorId = 0) {
 
     const targetName = getCharacterName(targetId);
     if (currentRoomData.Ban.includes(targetId)) {
-        return { success: false, message: `Member #${targetId} (${targetName}) sudah ada di Banlist ruangan.` };
+        return { success: false, message: `Member #${targetId} (${targetName}) is already on the Room Banlist.` };
     }
 
     currentRoomData.Ban.push(targetId);
@@ -203,7 +203,7 @@ function addRoomBan(context, targetMember, operatorId = 0) {
 
     updateRoom(context, currentRoomData);
     console.log(`🚫 [Banlist Update] Member #${targetId} BANNED by #${operatorId || 'Web'}.`);
-    return { success: true, message: `Member #${targetId} (${targetName}) telah ditambahkan ke Banlist ruangan.` };
+    return { success: true, message: `Member #${targetId} (${targetName}) has been added to the Room Banlist.` };
 }
 
 /**
@@ -212,23 +212,23 @@ function addRoomBan(context, targetMember, operatorId = 0) {
 function removeRoomBan(context, targetMember, operatorId = 0) {
     const { socket, botPlayer, currentRoomData, getCharacterName } = context;
     const targetId = parseMemberId(targetMember);
-    if (!targetId) return { success: false, message: "Member ID tidak valid." };
+    if (!targetId) return { success: false, message: "Invalid Member ID." };
 
     if (!isBotAdmin(botPlayer, currentRoomData)) {
-        return { success: false, message: "Bot belum memiliki hak Room Admin." };
+        return { success: false, message: "Bot does not have Room Admin permissions." };
     }
 
     if (!Array.isArray(currentRoomData.Ban)) currentRoomData.Ban = [];
     const idx = currentRoomData.Ban.indexOf(targetId);
     if (idx < 0) {
-        return { success: false, message: `Member #${targetId} tidak ada di Banlist ruangan.` };
+        return { success: false, message: `Member #${targetId} is not on the Room Banlist.` };
     }
 
     currentRoomData.Ban.splice(idx, 1);
     updateRoom(context, currentRoomData);
     const targetName = getCharacterName(targetId);
     console.log(`🚫 [Banlist Update] Member #${targetId} UNBANNED by #${operatorId || 'Web'}.`);
-    return { success: true, message: `Member #${targetId} (${targetName}) telah dihapus dari Banlist ruangan.` };
+    return { success: true, message: `Member #${targetId} (${targetName}) has been removed from the Room Banlist.` };
 }
 
 /**
@@ -238,18 +238,18 @@ function kickRoomMember(context, targetMember, operatorId = 0) {
     const { socket, botPlayer, currentRoomData, getCharacterName } = context;
     const targetId = parseMemberId(targetMember);
     const myName = botPlayer ? botPlayer.Name : CONFIG.accountName;
-    if (!targetId) return { success: false, message: "Member ID tidak valid." };
+    if (!targetId) return { success: false, message: "Invalid Member ID." };
 
     if (!isBotAdmin(botPlayer, currentRoomData)) {
-        return { success: false, message: "Bot belum memiliki hak Room Admin untuk kick." };
+        return { success: false, message: "Bot does not have Room Admin permissions to kick players." };
     }
 
     if (botPlayer && targetId === botPlayer.MemberNumber) {
-        return { success: false, message: `Tidak dapat menendang bot ${myName} sendiri.` };
+        return { success: false, message: `Cannot kick bot ${myName}.` };
     }
 
     if (MASTER_ADMINS.has(targetId)) {
-        return { success: false, message: "Master Admin tidak dapat di-kick." };
+        return { success: false, message: "Master Admin cannot be kicked." };
     }
 
     socket.emit("ChatRoomAdmin", {
@@ -262,7 +262,7 @@ function kickRoomMember(context, targetMember, operatorId = 0) {
     if (typeof context.notifyWebRefresh === "function") {
         context.notifyWebRefresh();
     }
-    return { success: true, message: `Member #${targetId} (${targetName}) berhasil di-kick dari ruangan.` };
+    return { success: true, message: `Member #${targetId} (${targetName}) was kicked from the room.` };
 }
 
 /**
@@ -295,7 +295,7 @@ function handleAdminWhisper(context, rawText, sender) {
             sendWhisper(
                 socket,
                 senderId,
-                `⛔ [${myName} Music] Akses ditolak! Hanya Administrator ruangan yang dapat melihat menu admin. Ketik !help untuk bantuan.`
+                `⛔ [${myName} Music] Access denied! Only Room Administrators can view the admin menu. Type !help for assistance.`
             );
             return;
         }
@@ -309,7 +309,7 @@ function handleAdminWhisper(context, rawText, sender) {
         sendWhisper(
             socket,
             senderId,
-            `⛔ [${myName} Music] Akses ditolak! Hanya Administrator ruangan yang dapat mengatur Admin, Whitelist, dan Banlist. Ketik !help untuk bantuan.`
+            `⛔ [${myName} Music] Access denied! Only Room Administrators can manage Admin, Whitelist, and Banlist. Type !help for assistance.`
         );
         return;
     }
@@ -319,7 +319,7 @@ function handleAdminWhisper(context, rawText, sender) {
         sendWhisper(
             socket,
             senderId,
-            `⚠️ [${myName} Music] Bot belum memiliki hak Room Admin di ruangan ini. Mohon berikan Admin ke ${myName} (#${botPlayer ? botPlayer.MemberNumber : 0}) terlebih dahulu!`
+            `⚠️ [${myName} Music] Bot does not have Room Admin privileges in this room yet. Please grant Admin to ${myName} (#${botPlayer ? botPlayer.MemberNumber : 0}) first!`
         );
         return;
     }
@@ -336,7 +336,7 @@ function handleAdminWhisper(context, rawText, sender) {
         const list = currentRoomData.Admin;
         const formatted = list.length > 0
             ? list.map((id, i) => `${i + 1}. #${id} (${getCharacterName(id)})`).join("\n")
-            : "Tidak ada.";
+            : "None.";
         sendWhisper(
             socket,
             senderId,
@@ -364,7 +364,7 @@ function handleAdminWhisper(context, rawText, sender) {
         const list = currentRoomData.Whitelist;
         const formatted = list.length > 0
             ? list.map((id, i) => `${i + 1}. #${id} (${getCharacterName(id)})`).join("\n")
-            : "Kosong (Semua orang dengan akses room dapat masuk).";
+            : "Empty (Public room access enabled).";
         sendWhisper(
             socket,
             senderId,
@@ -392,7 +392,7 @@ function handleAdminWhisper(context, rawText, sender) {
         const list = currentRoomData.Ban;
         const formatted = list.length > 0
             ? list.map((id, i) => `${i + 1}. #${id} (${getCharacterName(id)})`).join("\n")
-            : "Tidak ada pemain yang di-ban.";
+            : "No banned players.";
         sendWhisper(
             socket,
             senderId,
@@ -426,7 +426,7 @@ function handleAdminWhisper(context, rawText, sender) {
     sendWhisper(
         socket,
         senderId,
-        `❓ [${myName} Music] Perintah whisper "${cmd}" tidak dikenal. Ketik !help untuk melihat menu perintah admin.`
+        `❓ [${myName} Music] Unknown whisper command "${cmd}". Type !adminmenu to view the admin command menu.`
     );
 }
 

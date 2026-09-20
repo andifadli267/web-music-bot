@@ -91,10 +91,10 @@ function getBotStatus() {
 
 async function handleWebAction(data) {
     if (!data || typeof data !== "object") {
-        return { success: false, message: "Payload tidak valid." };
+        return { success: false, message: "Invalid payload." };
     }
     if (!currentSocket || !currentSocket.connected || !isInRoom || !currentRoomData) {
-        return { success: false, message: "Bot sedang offline atau belum berada di dalam ruangan." };
+        return { success: false, message: "Bot is offline or not currently inside a room." };
     }
 
     const context = getContext(currentSocket);
@@ -113,7 +113,7 @@ async function handleWebAction(data) {
             return playRadio(context, data.genre, data.requester || "Web DJ");
         case "chat": {
             const msg = (data.message || "").trim();
-            if (!msg) return { success: false, message: "Pesan tidak boleh kosong." };
+            if (!msg) return { success: false, message: "Message cannot be empty." };
             if (data.isEmote) {
                 sendRoomEmote(currentSocket, msg.startsWith("*") ? msg : `* ${msg}`);
             } else {
@@ -122,13 +122,13 @@ async function handleWebAction(data) {
                     Type: "Chat",
                 });
             }
-            return { success: true, message: "Pesan berhasil dikirim ke ruangan." };
+            return { success: true, message: "Message successfully sent to the room." };
         }
         case "expression": {
             const { group, expression } = data;
-            if (!group || !expression) return { success: false, message: "Group dan expression wajib diisi." };
+            if (!group || !expression) return { success: false, message: "Group and expression are required." };
             changeFaceExpression(currentSocket, group, expression);
-            return { success: true, message: `Ekspresi ${group} diubah menjadi ${expression}.` };
+            return { success: true, message: `Expression for ${group} changed to ${expression}.` };
         }
         case "admin": {
             const { subAction, memberNumber, operatorNumber } = data;
@@ -149,11 +149,11 @@ async function handleWebAction(data) {
                 case "kick":
                     return kickRoomMember(context, memberNumber, op);
                 default:
-                    return { success: false, message: `Sub-aksi admin '${subAction}' tidak dikenal.` };
+                    return { success: false, message: `Unknown admin sub-action '${subAction}'.` };
             }
         }
         default:
-            return { success: false, message: `Aksi '${action}' tidak dikenal.` };
+            return { success: false, message: `Unknown action '${action}'.` };
     }
 }
 

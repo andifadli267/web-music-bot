@@ -99,15 +99,15 @@ function getAdminMenuMessage(myName) {
         `• Whitelist: !whitelist <id> | !delwhitelist <id> | !whitelistlist\n` +
         `• Banlist: !ban <id> | !unban <id> | !banlist\n` +
         `• Kick: !kick <id>\n` +
-        `Contoh: /w ${myName} !whitelist 254143`;
+        `Example: /w ${myName} !whitelist 254143`;
 }
 
 function getHelpMessage(myName) {
     return `🎵 [${myName} Music Commands]:\n` +
-        `• Putar: !play <judul/link>\n` +
-        `• Antrean: !queue | !skip | !clear | !stop | !np\n` +
+        `• Play: !play <title/link>\n` +
+        `• Queue: !queue | !skip | !clear | !stop | !np\n` +
         `• Radio: !radio <genre> (lofi, synth, chillsynth, pop, dance, rock, hiphop, jazz)\n` +
-        `• Pertemanan: !friend`;
+        `• Friendship: !friend`;
 }
 
 /**
@@ -485,7 +485,7 @@ function handleRoomCommand(context, text, sender) {
             sendWhisper(
                 socket,
                 sender,
-                `⛔ [${myName} Music] Akses ditolak! Hanya Administrator ruangan yang dapat melihat menu admin.`
+                `⛔ [${myName} Music] Access denied! Only Room Administrators can view the admin menu.`
             );
         }
         return;
@@ -551,7 +551,7 @@ function handleRoomCommand(context, text, sender) {
             sendWhisper(
                 socket,
                 sender,
-                `🔒 [${myName} Music] Pengelolaan Admin, Whitelist, dan Banlist hanya dapat dijalankan oleh Administrator melalui bisikan privat: /w ${myName} <perintah>`
+                `🔒 [${myName} Music] Admin, Whitelist, and Banlist management can only be run by Room Administrators via private whisper: /w ${myName} <command>`
             );
         }
     } else if (cmd === "!friend" || cmd === "!addfriend" || cmd === "!teman") {
