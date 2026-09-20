@@ -5,7 +5,7 @@
  */
 
 const path = require("path");
-const { CONFIG, STATIONS, MAX_QUEUE } = require("../config");
+const { CONFIG, STATIONS, MAX_QUEUE, MASTER_ADMINS } = require("../config");
 const { convertYoutubeToMp3 } = require("../services/audio");
 const { acceptFriendRequest } = require("../services/friends");
 
@@ -81,6 +81,33 @@ function extractCommand(msg) {
 function isBotAdmin(botPlayer, currentRoomData) {
     if (!botPlayer || !currentRoomData || !Array.isArray(currentRoomData.Admin)) return false;
     return currentRoomData.Admin.includes(botPlayer.MemberNumber);
+}
+
+function checkIsAdmin(botPlayer, currentRoomData, senderId) {
+    const id = Number(senderId);
+    if (!id) return false;
+    if (MASTER_ADMINS && MASTER_ADMINS.has(id)) return true;
+    if (currentRoomData && Array.isArray(currentRoomData.Admin) && currentRoomData.Admin.includes(id)) {
+        return true;
+    }
+    return false;
+}
+
+function getHelpMessage(myName, isAdmin = false) {
+    let msg = `🎵 [${myName} Music Commands]:\n` +
+        `• Putar: !play <judul/link>\n` +
+        `• Antrean: !queue | !skip | !clear | !stop | !np\n` +
+        `• Radio: !radio <genre> (lofi, synth, chillsynth, pop, dance, rock, hiphop, jazz)\n` +
+        `• Pertemanan: !friend\n` +
+        `• Web: Dashboard aktif di http://localhost:3000`;
+    if (isAdmin) {
+        msg += `\n\n🔒 [Room Admin Menu]:\n` +
+            `• Admin: !admin <id> | !deladmin <id> | !adminlist\n` +
+            `• Whitelist: !whitelist <id> | !delwhitelist <id> | !whitelistlist\n` +
+            `• Banlist: !ban <id> | !unban <id> | !banlist\n` +
+            `• Kick: !kick <id>`;
+    }
+    return msg;
 }
 
 /**
@@ -447,16 +474,9 @@ function handleRoomCommand(context, text, sender) {
 
     if (cmd === "!help" || cmd === "!music") {
         changeFaceExpression(socket, "Eyes", "Wink");
-        sendRoomEmote(
-            socket,
-            `* 🎵 [${myName} Music]: Standalone DJ playing synced room music for everyone! Commands: !play <song/link> | !queue | !skip | !clear | !radio <genre> | !stop | !np | !friend`
-        );
-        setTimeout(() => {
-            sendRoomEmote(
-                socket,
-                `* 📻 Radio Genres: lofi, synth, chillsynth, pop, dance, rock, hiphop, jazz. Example: !radio synth`
-            );
-        }, 1200);
+        const isAdmin = checkIsAdmin(botPlayer, currentRoomData, sender);
+        sendWhisper(socket, sender, getHelpMessage(myName, isAdmin));
+        return;
     } else if (cmd === "!play" || cmd === "!yt") {
         const rawAfterCmd = text.slice(text.indexOf(parts[0]) + parts[0].length).trim();
         playSong(context, rawAfterCmd, sender, senderName);
@@ -551,5 +571,6 @@ module.exports = {
     stopSong,
     clearQueue,
     playRadio,
+    getHelpMessage,
 };
 

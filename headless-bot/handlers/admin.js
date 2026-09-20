@@ -10,7 +10,7 @@
  */
 
 const { CONFIG, MASTER_ADMINS } = require("../config");
-const { extractCommand, isBotAdmin } = require("./commands");
+const { extractCommand, isBotAdmin, getHelpMessage } = require("./commands");
 
 /**
  * Checks if a member has room administrator permissions.
@@ -283,18 +283,25 @@ function handleAdminWhisper(context, rawText, sender) {
     const cmd = rawCmd.startsWith("!") ? rawCmd : `!${rawCmd}`;
     const arg = parts[1] || "";
 
-    // 1. Verify that sender is a Room Administrator or Master Admin
+    // 1. HELP COMMAND VIA WHISPER - Available to EVERYONE (Both regular members & admins)
+    if (cmd === "!help" || cmd === "!music" || cmd === "!adminhelp" || cmd === "!menu") {
+        const isAdmin = isRoomAdmin(botPlayer, currentRoomData, senderId);
+        sendWhisper(socket, senderId, getHelpMessage(myName, isAdmin));
+        return;
+    }
+
+    // 2. Verify that sender is a Room Administrator or Master Admin for management commands
     if (!isRoomAdmin(botPlayer, currentRoomData, senderId)) {
         console.warn(`⛔ [Admin Whisper Denied] Non-admin Member #${senderId} (${senderName}) attempted admin whisper: "${text}"`);
         sendWhisper(
             socket,
             senderId,
-            `⛔ [${myName} Music] Akses ditolak! Hanya Administrator ruangan yang dapat mengatur Admin, Whitelist, dan Banlist.`
+            `⛔ [${myName} Music] Akses ditolak! Hanya Administrator ruangan yang dapat mengatur Admin, Whitelist, dan Banlist. Ketik !help untuk bantuan.`
         );
         return;
     }
 
-    // 2. Check if the bot itself has Room Admin rights to commit changes
+    // 3. Check if the bot itself has Room Admin rights to commit changes
     if (!isBotAdmin(botPlayer, currentRoomData)) {
         sendWhisper(
             socket,
@@ -308,23 +315,6 @@ function handleAdminWhisper(context, rawText, sender) {
     if (!Array.isArray(currentRoomData.Admin)) currentRoomData.Admin = [];
     if (!Array.isArray(currentRoomData.Whitelist)) currentRoomData.Whitelist = [];
     if (!Array.isArray(currentRoomData.Ban)) currentRoomData.Ban = [];
-
-    // ==========================================
-    // A. HELP COMMAND VIA WHISPER
-    // ==========================================
-    if (cmd === "!help" || cmd === "!adminhelp" || cmd === "!menu") {
-        sendWhisper(
-            socket,
-            senderId,
-            `🔒 [${myName} Admin Whisper Menu]:\n` +
-            `• Admin: !admin <id> | !deladmin <id> | !adminlist\n` +
-            `• Whitelist: !whitelist <id> | !delwhitelist <id> | !whitelistlist\n` +
-            `• Banlist: !ban <id> | !unban <id> | !banlist\n` +
-            `• Kick: !kick <id>\n` +
-            `Contoh: /w ${myName} !whitelist 254143`
-        );
-        return;
-    }
 
     // ==========================================
     // B. ADMINISTRATOR MANAGEMENT
