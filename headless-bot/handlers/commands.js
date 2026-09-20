@@ -225,6 +225,206 @@ function playNextInQueue(context) {
 }
 
 /**
+ * Modular action: Plays or queues a song from a query or URL.
+ */
+async function playSong(context, inputQuery, sender = "DJ", customSenderName = null) {
+    const { socket, botPlayer, sendRoomEmote, changeFaceExpression, getCharacterName } = context;
+    const myName = botPlayer ? botPlayer.Name : CONFIG.accountName;
+    const senderName = customSenderName || (getCharacterName ? getCharacterName(sender) : String(sender));
+
+    if (!inputQuery || typeof inputQuery !== "string") {
+        return { success: false, message: "Please provide a song title or URL." };
+    }
+
+    const text = inputQuery.trim();
+    const urlMatch = text.match(/https?:\/\/[^\s\)\>\]]+/i);
+    let extractedUrl = urlMatch ? urlMatch[0].replace(/[\)\>\]\.\,\'\"\`]+$/, "") : null;
+    const cleanQuery = text.replace(/^[\(\[\<\"\']+|[\)\]\>\"\']+$/g, "").trim();
+
+    const isDirectAudio = extractedUrl && (extractedUrl.toLowerCase().includes(".mp3") || extractedUrl.toLowerCase().includes(".mp4"));
+
+    if (!cleanQuery && !extractedUrl) {
+        sendRoomEmote(
+            socket,
+            `* ⚠️ [${myName} Music] Please provide a song title, YouTube link, or .mp3 URL! Example: !play https://youtu.be/... or !play linkin park numb`
+        );
+        return { success: false, message: "Song title or URL required." };
+    }
+
+    // Direct MP3/MP4 URL
+    if (isDirectAudio) {
+        const trackTitle = `Custom Audio (${path.basename(new URL(extractedUrl).pathname)})`;
+        if (!currentTrack) {
+            setRoomMusic(context, extractedUrl, trackTitle, 0, {
+                title: trackTitle,
+                directUrl: extractedUrl,
+                duration: 0,
+                requestedBy: sender,
+                requesterName: senderName,
+            });
+            return { success: true, message: `Now playing: ${trackTitle}` };
+        } else {
+            if (songQueue.length >= MAX_QUEUE) {
+                sendRoomEmote(socket, `* ⚠️ [${myName} Music] The song queue is full! Maximum ${MAX_QUEUE} songs allowed.`);
+                return { success: false, message: "Queue is full (max 20)." };
+            }
+            songQueue.push({
+                title: trackTitle,
+                directUrl: extractedUrl,
+                duration: 0,
+                requestedBy: sender,
+                requesterName: senderName,
+            });
+            sendRoomEmote(socket, `* 📋 [${myName} Music] Added to queue (#${songQueue.length}/${MAX_QUEUE}): "${trackTitle}" (Requested by ${senderName}) 🎶`);
+            return { success: true, message: `Added to queue (#${songQueue.length}): ${trackTitle}` };
+        }
+    }
+
+    // YouTube track or search query
+    const targetSong = extractedUrl || cleanQuery;
+
+    if (currentTrack && songQueue.length >= MAX_QUEUE) {
+        sendRoomEmote(
+            socket,
+            `* ⚠️ [${myName} Music] The song queue is full! Maximum ${MAX_QUEUE} songs allowed.`
+        );
+        return { success: false, message: "Queue is full (max 20)." };
+    }
+
+    if (isConverting) {
+        sendRoomEmote(
+            socket,
+            `* ⏳ [${myName} Music] Another song is currently converting. Please wait a few seconds!`
+        );
+        return { success: false, message: "Another song is currently converting. Please wait!" };
+    }
+
+    isConverting = true;
+    changeFaceExpression(socket, "Eyes", "Thinking");
+    sendRoomEmote(
+        socket,
+        `* ⏳ [${myName} Music] Converting audio for "${targetSong}"... Please wait a few seconds! 🎧`
+    );
+
+    try {
+        const { title, directUrl, duration } = await convertYoutubeToMp3(targetSong);
+        isConverting = false;
+
+        if (!currentTrack) {
+            setRoomMusic(context, directUrl, `YouTube: ${title}`, duration, {
+                title,
+                directUrl,
+                duration,
+                requestedBy: sender,
+                requesterName: senderName,
+            });
+            return { success: true, message: `Now playing: ${title}` };
+        } else {
+            songQueue.push({
+                title,
+                directUrl,
+                duration,
+                requestedBy: sender,
+                requesterName: senderName,
+            });
+            changeFaceExpression(socket, "Eyes", "Happy");
+            sendRoomEmote(
+                socket,
+                `* 📋 [${myName} Music] Added to queue (#${songQueue.length}/${MAX_QUEUE}): "${title}" (Requested by ${senderName}) 🎶`
+            );
+            return { success: true, message: `Added to queue (#${songQueue.length}): ${title}` };
+        }
+    } catch (err) {
+        isConverting = false;
+        changeFaceExpression(socket, "Eyes", "Sad");
+        console.error("[YouTube Conversion Error]", err);
+        sendRoomEmote(
+            socket,
+            `* ⚠️ [${myName} Music] Failed to convert that YouTube track. Please make sure the link is accessible!`
+        );
+        return { success: false, message: "Failed to convert audio." };
+    }
+}
+
+/**
+ * Modular action: Skips currently playing song.
+ */
+function skipSong(context, customSenderName = null) {
+    const { socket, botPlayer, sendRoomEmote, getCharacterName } = context;
+    const myName = botPlayer ? botPlayer.Name : CONFIG.accountName;
+    const senderName = customSenderName || "DJ";
+
+    if (!currentTrack && songQueue.length === 0) {
+        sendRoomEmote(socket, `* ⚠️ [${myName} Music] No song is currently playing to skip!`);
+        return { success: false, message: "No song is currently playing." };
+    }
+
+    sendRoomEmote(socket, `* ⏭️ [${myName} Music] Track skipped by ${senderName}!`);
+    playNextInQueue(context);
+    return { success: true, message: "Track skipped." };
+}
+
+/**
+ * Modular action: Stops playback and clears queue.
+ */
+function stopSong(context, customSenderName = null) {
+    const { botPlayer, sendRoomEmote, socket } = context;
+    const myName = botPlayer ? botPlayer.Name : CONFIG.accountName;
+
+    songQueue.length = 0;
+    currentStation = null;
+    if (trackEndTimer) {
+        clearTimeout(trackEndTimer);
+        trackEndTimer = null;
+    }
+    setRoomMusic(context, "", "");
+    return { success: true, message: "Music playback stopped." };
+}
+
+/**
+ * Modular action: Clears upcoming songs from queue.
+ */
+function clearQueue(context, customSenderName = null) {
+    const { botPlayer, sendRoomEmote, socket } = context;
+    const myName = botPlayer ? botPlayer.Name : CONFIG.accountName;
+    const count = songQueue.length;
+    songQueue.length = 0;
+    const senderName = customSenderName || "DJ";
+    sendRoomEmote(
+        socket,
+        `* 🗑️ [${myName} Music] Cleared ${count} song(s) from the queue (Requested by ${senderName}).`
+    );
+    return { success: true, message: `Cleared ${count} song(s) from queue.` };
+}
+
+/**
+ * Modular action: Plays a 24/7 radio station.
+ */
+function playRadio(context, genreKey, customSenderName = null) {
+    const { botPlayer, sendRoomEmote, socket } = context;
+    const myName = botPlayer ? botPlayer.Name : CONFIG.accountName;
+    const key = (genreKey || "").toLowerCase().trim();
+
+    if (STATIONS[key]) {
+        currentStation = STATIONS[key];
+        songQueue.length = 0;
+        if (trackEndTimer) {
+            clearTimeout(trackEndTimer);
+            trackEndTimer = null;
+        }
+        setRoomMusic(context, currentStation.url, currentStation.name);
+        return { success: true, message: `Switched to 24/7 radio: ${currentStation.name}` };
+    } else {
+        const available = Object.keys(STATIONS).join(", ");
+        sendRoomEmote(
+            socket,
+            `* ⚠️ [${myName} Music] Available genres: ${available}. Example: !radio synth`
+        );
+        return { success: false, message: `Genre '${genreKey}' not found. Available: ${available}` };
+    }
+}
+
+/**
  * Processes chat commands from room members.
  */
 function handleRoomCommand(context, text, sender) {
@@ -232,6 +432,7 @@ function handleRoomCommand(context, text, sender) {
     const parts = text.split(/\s+/);
     const cmd = parts[0].toLowerCase();
     const myName = botPlayer ? botPlayer.Name : CONFIG.accountName;
+    const senderName = getCharacterName(sender);
 
     if (cmd === "!help" || cmd === "!music") {
         changeFaceExpression(socket, "Eyes", "Wink");
@@ -246,111 +447,8 @@ function handleRoomCommand(context, text, sender) {
             );
         }, 1200);
     } else if (cmd === "!play" || cmd === "!yt") {
-        const urlMatch = text.match(/https?:\/\/[^\s\)\>\]]+/i);
-        let extractedUrl = urlMatch ? urlMatch[0].replace(/[\)\>\]\.\,\'\"\`]+$/, "") : null;
-
         const rawAfterCmd = text.slice(text.indexOf(parts[0]) + parts[0].length).trim();
-        const cleanQuery = rawAfterCmd.replace(/^[\(\[\<\"\']+|[\)\]\>\"\']+$/g, "").trim();
-
-        const isDirectAudio = extractedUrl && (extractedUrl.toLowerCase().includes(".mp3") || extractedUrl.toLowerCase().includes(".mp4"));
-        const isYoutube = (extractedUrl && (extractedUrl.includes("youtube.com") || extractedUrl.includes("youtu.be"))) || (!isDirectAudio && cleanQuery.length > 0);
-
-        if (!cleanQuery && !extractedUrl) {
-            sendRoomEmote(
-                socket,
-                `* ⚠️ [${myName} Music] Please provide a song title, YouTube link, or .mp3 URL! Example: !play https://youtu.be/... or !play linkin park numb`
-            );
-            return;
-        }
-
-        // Direct MP3 URL
-        if (isDirectAudio) {
-            if (!currentTrack) {
-                setRoomMusic(context, extractedUrl, `Custom Audio (${path.basename(new URL(extractedUrl).pathname)})`);
-            } else {
-                if (songQueue.length >= MAX_QUEUE) {
-                    sendRoomEmote(socket, `* ⚠️ [${myName} Music] The song queue is full! Maximum ${MAX_QUEUE} songs allowed.`);
-                    return;
-                }
-                const trackTitle = `Custom Audio (${path.basename(new URL(extractedUrl).pathname)})`;
-                const senderName = getCharacterName(sender);
-                songQueue.push({
-                    title: trackTitle,
-                    directUrl: extractedUrl,
-                    duration: 0,
-                    requestedBy: sender,
-                    requesterName: senderName,
-                });
-                sendRoomEmote(socket, `* 📋 [${myName} Music] Added to queue (#${songQueue.length}/${MAX_QUEUE}): "${trackTitle}" (Requested by ${senderName}) 🎶`);
-            }
-            return;
-        }
-
-        // YouTube track or search query
-        const targetSong = extractedUrl || cleanQuery;
-
-        if (currentTrack && songQueue.length >= MAX_QUEUE) {
-            sendRoomEmote(
-                socket,
-                `* ⚠️ [${myName} Music] The song queue is full! Maximum ${MAX_QUEUE} songs allowed.`
-            );
-            return;
-        }
-
-        if (isConverting) {
-            sendRoomEmote(
-                socket,
-                `* ⏳ [${myName} Music] Another song is currently converting. Please wait a few seconds!`
-            );
-            return;
-        }
-
-        isConverting = true;
-        changeFaceExpression(socket, "Eyes", "Thinking");
-        sendRoomEmote(
-            socket,
-            `* ⏳ [${myName} Music] Converting audio for "${targetSong}"... Please wait a few seconds! 🎧`
-        );
-
-        convertYoutubeToMp3(targetSong)
-            .then(({ title, directUrl, duration }) => {
-                isConverting = false;
-                const senderName = getCharacterName(sender);
-
-                if (!currentTrack) {
-                    // Nothing playing: play immediately
-                    setRoomMusic(context, directUrl, `YouTube: ${title}`, duration, {
-                        title,
-                        directUrl,
-                        duration,
-                        requestedBy: sender,
-                        requesterName: senderName,
-                    });
-                } else {
-                    // Something is already playing: add to queue
-                    songQueue.push({
-                        title,
-                        directUrl,
-                        duration,
-                        requestedBy: sender,
-                        requesterName: senderName,
-                    });
-                    changeFaceExpression(socket, "Eyes", "Happy");
-                    sendRoomEmote(
-                        socket,
-                        `* 📋 [${myName} Music] Added to queue (#${songQueue.length}/${MAX_QUEUE}): "${title}" (Requested by ${senderName}) 🎶`
-                    );
-                }
-            })
-            .catch((err) => {
-                isConverting = false;
-                changeFaceExpression(socket, "Eyes", "Sad");
-                console.error("[YouTube Conversion Error]", err);
-                sendRoomEmote(
-                    socket,
-                    `* ⚠️ [${myName} Music] Failed to convert that YouTube track. Please make sure the link is accessible!`
-                );
-            });
+        playSong(context, rawAfterCmd, sender, senderName);
     } else if (cmd === "!queue" || cmd === "!q") {
         if (!currentTrack && songQueue.length === 0) {
             sendRoomEmote(
@@ -376,54 +474,19 @@ function handleRoomCommand(context, text, sender) {
         }
         sendRoomEmote(socket, lines.join("\n"));
     } else if (cmd === "!skip" || cmd === "!next") {
-        if (!currentTrack && songQueue.length === 0) {
-            sendRoomEmote(
-                socket,
-                `* ⚠️ [${myName} Music] No song is currently playing to skip!`
-            );
-            return;
-        }
-        sendRoomEmote(
-            socket,
-            `* ⏭️ [${myName} Music] Track skipped by ${getCharacterName(sender)}!`
-        );
-        playNextInQueue(context);
+        skipSong(context, senderName);
     } else if (cmd === "!clear") {
-        const count = songQueue.length;
-        songQueue.length = 0;
-        sendRoomEmote(
-            socket,
-            `* 🗑️ [${myName} Music] Cleared ${count} song(s) from the queue (Requested by ${getCharacterName(sender)}).`
-        );
+        clearQueue(context, senderName);
     } else if (cmd === "!radio") {
         const key = (parts[1] || "").toLowerCase().replace(/^[\(<\[\{"']+|[\)>\]\}"']+$/g, "").trim();
-        if (STATIONS[key]) {
-            currentStation = STATIONS[key];
-            songQueue.length = 0;
-            if (trackEndTimer) {
-                clearTimeout(trackEndTimer);
-                trackEndTimer = null;
-            }
-            setRoomMusic(context, currentStation.url, currentStation.name);
-        } else {
-            sendRoomEmote(
-                socket,
-                `* ⚠️ [${myName} Music] Available genres: lofi, synth, chillsynth, pop, dance, rock, hiphop, jazz. Example: !radio synth`
-            );
-        }
+        playRadio(context, key, senderName);
     } else if (cmd === "!stop") {
-        songQueue.length = 0;
-        currentStation = null;
-        if (trackEndTimer) {
-            clearTimeout(trackEndTimer);
-            trackEndTimer = null;
-        }
-        setRoomMusic(context, "", "");
+        stopSong(context, senderName);
     } else if (cmd === "!np") {
         if (currentTrack) {
             sendRoomEmote(
                 socket,
-                `* 🎵 [${myName} Music] Now playing: "${currentTrack.title}" (Requested by Member #${currentTrack.requestedBy || 'DJ'}) 🎧`
+                `* 🎵 [${myName} Music] Now playing: "${currentTrack.title}" (Requested by ${currentTrack.requesterName || 'Member #' + currentTrack.requestedBy}) 🎧`
             );
         } else if (currentStation) {
             sendRoomEmote(
@@ -472,5 +535,10 @@ module.exports = {
     getQueueState,
     resetQueue,
     isBotAdmin,
+    playSong,
+    skipSong,
+    stopSong,
+    clearQueue,
+    playRadio,
 };
 

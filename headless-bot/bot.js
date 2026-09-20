@@ -8,7 +8,7 @@
  */
 
 const { io } = require("socket.io-client");
-const { CONFIG, MASTER_ADMINS, CONVERT_DIR } = require("./config");
+const { CONFIG, MASTER_ADMINS, CONVERT_DIR, STATIONS } = require("./config");
 const { detectPythonRuntime, cleanLocalFiles } = require("./services/audio");
 const { acceptFriendRequest } = require("./services/friends");
 const {
@@ -16,11 +16,26 @@ const {
     handleRoomCommand,
     resetQueue,
     getQueueState,
+    playSong,
+    skipSong,
+    stopSong,
+    clearQueue,
+    playRadio,
 } = require("./handlers/commands");
-const { handleAdminWhisper } = require("./handlers/admin");
+const {
+    handleAdminWhisper,
+    addRoomAdmin,
+    removeRoomAdmin,
+    addRoomWhitelist,
+    removeRoomWhitelist,
+    addRoomBan,
+    removeRoomBan,
+    kickRoomMember,
+} = require("./handlers/admin");
 const { startWebServer, stopWebServer } = require("./web/server");
 
 const botStartTime = Date.now();
+let currentSocket = null;
 let botPlayer = null;
 let currentRoomData = null;
 let isInRoom = false;
@@ -38,23 +53,30 @@ function getBotStatus() {
         }))
         : [];
 
+    const stationList = Object.keys(STATIONS).map(key => ({
+        id: key,
+        name: STATIONS[key].name,
+    }));
+
     return {
         bot: {
             name: botPlayer ? (botPlayer.Name || CONFIG.accountName) : CONFIG.accountName,
             accountName: CONFIG.accountName,
             memberNumber: botPlayer ? botPlayer.MemberNumber : null,
             targetRoom: CONFIG.targetRoom,
-            isOnline: Boolean(botPlayer),
+            isOnline: Boolean(botPlayer) && Boolean(currentSocket && currentSocket.connected),
             friendsCount: botPlayer && Array.isArray(botPlayer.FriendList) ? botPlayer.FriendList.length : 0,
             uptime: Math.floor((Date.now() - botStartTime) / 1000),
         },
         room: {
             name: currentRoomData ? currentRoomData.Name : CONFIG.targetRoom,
             space: currentRoomData ? (currentRoomData.Space || CONFIG.targetSpace || "") : "",
-            isInRoom,
+            isInRoom: Boolean(isInRoom && currentRoomData),
             players: characters,
             playerCount: characters.length,
             admins: currentRoomData && Array.isArray(currentRoomData.Admin) ? currentRoomData.Admin : [],
+            whitelist: currentRoomData && Array.isArray(currentRoomData.Whitelist) ? currentRoomData.Whitelist : [],
+            ban: currentRoomData && Array.isArray(currentRoomData.Ban) ? currentRoomData.Ban : [],
             musicUrl: currentRoomData && currentRoomData.Custom ? (currentRoomData.Custom.MusicURL || "") : "",
         },
         playback: {
@@ -63,7 +85,76 @@ function getBotStatus() {
             isConverting: queueState.isConverting,
         },
         queue: queueState.songQueue || [],
+        stations: stationList,
     };
+}
+
+async function handleWebAction(data) {
+    if (!data || typeof data !== "object") {
+        return { success: false, message: "Payload tidak valid." };
+    }
+    if (!currentSocket || !currentSocket.connected || !isInRoom || !currentRoomData) {
+        return { success: false, message: "Bot sedang offline atau belum berada di dalam ruangan." };
+    }
+
+    const context = getContext(currentSocket);
+    const { action } = data;
+
+    switch (action) {
+        case "play":
+            return await playSong(context, data.query, "Web", data.requester || "Web DJ");
+        case "skip":
+            return skipSong(context, data.requester || "Web DJ");
+        case "stop":
+            return stopSong(context, data.requester || "Web DJ");
+        case "clear":
+            return clearQueue(context, data.requester || "Web DJ");
+        case "radio":
+            return playRadio(context, data.genre, data.requester || "Web DJ");
+        case "chat": {
+            const msg = (data.message || "").trim();
+            if (!msg) return { success: false, message: "Pesan tidak boleh kosong." };
+            if (data.isEmote) {
+                sendRoomEmote(currentSocket, msg.startsWith("*") ? msg : `* ${msg}`);
+            } else {
+                currentSocket.emit("ChatRoomChat", {
+                    Content: msg,
+                    Type: "Chat",
+                });
+            }
+            return { success: true, message: "Pesan berhasil dikirim ke ruangan." };
+        }
+        case "expression": {
+            const { group, expression } = data;
+            if (!group || !expression) return { success: false, message: "Group dan expression wajib diisi." };
+            changeFaceExpression(currentSocket, group, expression);
+            return { success: true, message: `Ekspresi ${group} diubah menjadi ${expression}.` };
+        }
+        case "admin": {
+            const { subAction, memberNumber, operatorNumber } = data;
+            const op = operatorNumber || (botPlayer ? botPlayer.MemberNumber : 0);
+            switch (subAction) {
+                case "addAdmin":
+                    return addRoomAdmin(context, memberNumber, op);
+                case "removeAdmin":
+                    return removeRoomAdmin(context, memberNumber, op);
+                case "addWhitelist":
+                    return addRoomWhitelist(context, memberNumber, op);
+                case "removeWhitelist":
+                    return removeRoomWhitelist(context, memberNumber, op);
+                case "addBan":
+                    return addRoomBan(context, memberNumber, op);
+                case "removeBan":
+                    return removeRoomBan(context, memberNumber, op);
+                case "kick":
+                    return kickRoomMember(context, memberNumber, op);
+                default:
+                    return { success: false, message: `Sub-aksi admin '${subAction}' tidak dikenal.` };
+            }
+        }
+        default:
+            return { success: false, message: `Aksi '${action}' tidak dikenal.` };
+    }
 }
 
 function getCharacterName(memberNumber) {
@@ -134,7 +225,7 @@ async function startBot() {
     console.log(`📊 Web Dashboard  : http://localhost:${CONFIG.webPort}`);
     console.log("----------------------------------------------------------");
 
-    startWebServer(CONFIG.webPort, getBotStatus);
+    startWebServer(CONFIG.webPort, getBotStatus, handleWebAction);
 
     const socket = io(CONFIG.serverUrl, {
         transports: ["websocket"],
@@ -147,6 +238,8 @@ async function startBot() {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         },
     });
+
+    currentSocket = socket;
 
     socket.on("connect", () => {
         console.log("✅ Connected to BC socket server! (Socket ID: " + socket.id + ")");

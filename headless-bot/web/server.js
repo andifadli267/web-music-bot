@@ -1,7 +1,7 @@
 /**
  * Embedded Web Server & REST API for Nava Music Bot
  * Serves real-time dashboard displaying current playback, song queue, requester info,
- * and current room location.
+ * room status, and handles interactive bot controls (music, chat, expressions, room admin).
  */
 
 const http = require("http");
@@ -24,13 +24,13 @@ const MIME_TYPES = {
 
 let serverInstance = null;
 
-function startWebServer(port, getStatus) {
+function startWebServer(port, getStatus, handleAction) {
     if (serverInstance) return serverInstance;
 
-    const server = http.createServer((req, res) => {
+    const server = http.createServer(async (req, res) => {
         // Set basic CORS and security headers
         res.setHeader("Access-Control-Allow-Origin", "*");
-        res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+        res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
         res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
         if (req.method === "OPTIONS") {
@@ -42,10 +42,55 @@ function startWebServer(port, getStatus) {
         const pathname = parsedUrl.pathname;
 
         // REST API: Live status
-        if (pathname === "/api/status") {
-            res.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-cache" });
+        if (req.method === "GET" && pathname === "/api/status") {
+            res.writeHead(200, {
+                "Content-Type": "application/json; charset=utf-8",
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+            });
             const data = typeof getStatus === "function" ? getStatus() : {};
             return res.end(JSON.stringify(data));
+        }
+
+        // REST API: Control bot actions (Music, Chat, Expressions, Room Admin)
+        if (req.method === "POST" && pathname === "/api/action") {
+            // Guard: Website and controls are only active when bot is online & inside a room
+            const status = typeof getStatus === "function" ? getStatus() : {};
+            const isBotActive = status.bot && status.bot.isOnline && status.room && status.room.isInRoom;
+
+            if (!isBotActive) {
+                res.writeHead(503, { "Content-Type": "application/json; charset=utf-8" });
+                return res.end(JSON.stringify({
+                    success: false,
+                    error: "Bot sedang offline atau tidak berada di dalam ruangan. Website dan kontrol dinonaktifkan.",
+                }));
+            }
+
+            let body = "";
+            req.on("data", (chunk) => {
+                body += chunk;
+                if (body.length > 1e6) {
+                    req.destroy();
+                }
+            });
+
+            req.on("end", async () => {
+                try {
+                    const parsed = body ? JSON.parse(body) : {};
+                    if (typeof handleAction !== "function") {
+                        res.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
+                        return res.end(JSON.stringify({ success: false, error: "Handler aksi bot belum terkonfigurasi." }));
+                    }
+
+                    const result = await handleAction(parsed);
+                    res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+                    return res.end(JSON.stringify(result || { success: true }));
+                } catch (err) {
+                    console.error("❌ [API Action Error]:", err);
+                    res.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+                    return res.end(JSON.stringify({ success: false, error: err.message || "Gagal memproses aksi." }));
+                }
+            });
+            return;
         }
 
         // Static file serving
@@ -90,7 +135,7 @@ function startWebServer(port, getStatus) {
     server.on("error", (err) => {
         if (err.code === "EADDRINUSE") {
             console.warn(`⚠️ [Web Dashboard] Port ${port} is already in use. Retrying on port ${port + 1}...`);
-            startWebServer(port + 1, getStatus);
+            startWebServer(port + 1, getStatus, handleAction);
         } else {
             console.error("❌ [Web Dashboard Error]:", err.message);
         }
@@ -104,6 +149,7 @@ function stopWebServer() {
     if (serverInstance) {
         serverInstance.close();
         serverInstance = null;
+        console.log("🛑 [Web Dashboard] Server stopped.");
     }
 }
 
