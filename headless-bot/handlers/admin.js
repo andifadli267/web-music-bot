@@ -9,7 +9,7 @@
  * Communication is strictly restricted to private whispers (/w) both ways.
  */
 
-const { CONFIG, MASTER_ADMINS } = require("../config");
+const { CONFIG, MASTER_ADMINS, addAuthorizedMember, removeAuthorizedMember } = require("../config");
 const { extractCommand, isBotAdmin, getHelpMessage, getAdminMenuMessage } = require("./commands");
 
 /**
@@ -419,6 +419,60 @@ function handleAdminWhisper(context, rawText, sender) {
     if (cmd === "!kick") {
         const res = kickRoomMember(context, arg, senderId);
         sendWhisper(socket, senderId, (res.success ? "👢 " : "⚠️ ") + res.message);
+        return;
+    }
+
+    // ==========================================
+    // F. AUTHORIZED MEMBER MANAGEMENT
+    // ==========================================
+    if (cmd === "!authlist" || cmd === "!auths") {
+        const list = Array.from(MASTER_ADMINS);
+        const formatted = list.length > 0
+            ? list.map((id, i) => `${i + 1}. #${id} (${getCharacterName(id)})`).join("\n")
+            : "None.";
+        sendWhisper(
+            socket,
+            senderId,
+            `⭐ [${myName} Authorized Members] Total (${list.length}):\n${formatted}`
+        );
+        return;
+    }
+
+    if (cmd === "!addauth") {
+        const targetId = parseMemberId(arg);
+        if (!targetId) {
+            sendWhisper(socket, senderId, `⚠️ Format salah: !addauth <memberNumber>`);
+            return;
+        }
+        const res = addAuthorizedMember(targetId);
+        if (res.success) {
+            if (isBotAdmin(botPlayer, currentRoomData)) {
+                addRoomAdmin(context, targetId, senderId);
+            }
+            if (typeof context.notifyWebRefresh === "function") {
+                context.notifyWebRefresh();
+            }
+        }
+        sendWhisper(socket, senderId, (res.success ? "⭐ " : "⚠️ ") + res.message);
+        return;
+    }
+
+    if (cmd === "!delauth" || cmd === "!removeauth") {
+        const targetId = parseMemberId(arg);
+        if (!targetId) {
+            sendWhisper(socket, senderId, `⚠️ Format salah: !delauth <memberNumber>`);
+            return;
+        }
+        const res = removeAuthorizedMember(targetId);
+        if (res.success) {
+            if (isBotAdmin(botPlayer, currentRoomData) && Array.isArray(currentRoomData.Admin) && currentRoomData.Admin.includes(targetId)) {
+                removeRoomAdmin(context, targetId, senderId);
+            }
+            if (typeof context.notifyWebRefresh === "function") {
+                context.notifyWebRefresh();
+            }
+        }
+        sendWhisper(socket, senderId, (res.success ? "⭐ " : "⚠️ ") + res.message);
         return;
     }
 

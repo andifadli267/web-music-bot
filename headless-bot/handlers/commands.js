@@ -95,11 +95,12 @@ function checkIsAdmin(botPlayer, currentRoomData, senderId) {
 
 function getAdminMenuMessage(myName) {
     return `🔒 [${myName} Admin Menu]:\n` +
+        `• Authorized: !addauth <id> | !delauth <id> | !authlist\n` +
         `• Admin: !admin <id> | !deladmin <id> | !adminlist\n` +
         `• Whitelist: !whitelist <id> | !delwhitelist <id> | !whitelistlist\n` +
         `• Banlist: !ban <id> | !unban <id> | !banlist\n` +
         `• Kick: !kick <id>\n` +
-        `Example: /w ${myName} !whitelist 254143`;
+        `Example: /w ${myName} !addauth 254143`;
 }
 
 function getHelpMessage(myName) {

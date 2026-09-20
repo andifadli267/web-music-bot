@@ -11,7 +11,7 @@ const { io } = require("socket.io-client");
 const {
     CONFIG,
     MASTER_ADMINS,
-    DEFAULT_MASTER_ADMINS,
+    DEFAULT_SEED_ADMINS,
     CONVERT_DIR,
     STATIONS,
     addAuthorizedMember,
@@ -29,6 +29,7 @@ const {
     stopSong,
     clearQueue,
     playRadio,
+    isBotAdmin,
 } = require("./handlers/commands");
 const {
     handleAdminWhisper,
@@ -69,7 +70,6 @@ function getBotStatus() {
     const authMembers = Array.from(MASTER_ADMINS).map(id => ({
         memberNumber: id,
         name: getCharacterName(id),
-        isPrimary: DEFAULT_MASTER_ADMINS.includes(id),
     }));
 
     return {
@@ -171,11 +171,25 @@ async function handleWebAction(data) {
             const { subAction, memberNumber, roomName, space, password } = data;
             if (subAction === "add") {
                 const res = addAuthorizedMember(memberNumber);
+                if (res.success) {
+                    const num = parseInt(memberNumber, 10);
+                    if (num && isInRoom && currentRoomData && isBotAdmin(botPlayer, currentRoomData)) {
+                        addRoomAdmin(context, num, botPlayer.MemberNumber);
+                    }
+                }
                 notifyWebUpdate();
                 return res;
             }
             if (subAction === "remove") {
                 const res = removeAuthorizedMember(memberNumber);
+                if (res.success) {
+                    const num = parseInt(memberNumber, 10);
+                    if (num && isInRoom && currentRoomData && isBotAdmin(botPlayer, currentRoomData)) {
+                        if (Array.isArray(currentRoomData.Admin) && currentRoomData.Admin.includes(num)) {
+                            removeRoomAdmin(context, num, botPlayer.MemberNumber);
+                        }
+                    }
+                }
                 notifyWebUpdate();
                 return res;
             }

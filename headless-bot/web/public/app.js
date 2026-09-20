@@ -430,32 +430,29 @@ function updateAuthorizedMembers(data) {
 
     if (authMembers.length > 0) {
         listEl.innerHTML = authMembers.map(m => {
-            const isPrimary = Boolean(m.isPrimary);
-            const removeBtn = isPrimary
-                ? `<span class="auth-pill-tag primary">Primary Owner</span>`
-                : `<button class="member-remove-btn" title="Hapus Authorized Member" onclick="handleRemoveAuthMember(${m.memberNumber})">✕</button>`;
-            
             return `
-                <div class="auth-member-pill ${isPrimary ? 'is-primary' : ''}">
+                <div class="auth-member-pill">
                     <div class="auth-pill-left">
                         <span class="auth-pill-star">⭐</span>
                         <strong class="auth-pill-id">#${m.memberNumber}</strong>
                         <span class="auth-pill-name">(${escapeHtml(m.name || 'Member')})</span>
                     </div>
                     <div class="auth-pill-right">
-                        ${removeBtn}
+                        <button class="auth-remove-btn" title="Hapus Authorized Member dari Bot & Website" onclick="handleRemoveAuthMember(${m.memberNumber})">
+                            <span>🗑️</span> Hapus
+                        </button>
                     </div>
                 </div>
             `;
         }).join("");
     } else {
-        listEl.innerHTML = `<span class="empty-hint">Tidak ada authorized member terdaftar.</span>`;
+        listEl.innerHTML = `<span class="empty-hint">Belum ada authorized member terdaftar. Tambahkan nomor member di atas.</span>`;
     }
 }
 
 // Global removal handler for authorized members
 window.handleRemoveAuthMember = function(memberNumber) {
-    if (!confirm(`Hapus Member #${memberNumber} dari daftar Authorized Member?`)) return;
+    if (!confirm(`Hapus Member #${memberNumber} dari Authorized Member bot & website?`)) return;
     sendBotAction("authorizedMember", { subAction: "remove", memberNumber });
 };
 

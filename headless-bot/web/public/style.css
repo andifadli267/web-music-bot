@@ -1384,6 +1384,29 @@ select:focus {
     letter-spacing: 0.03em;
 }
 
+.auth-remove-btn {
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    border-radius: 6px;
+    color: #fca5a5;
+    font-size: 0.74rem;
+    font-weight: 600;
+    padding: 4px 8px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.2s ease;
+}
+
+.auth-remove-btn:hover {
+    background: #ef4444;
+    border-color: #ef4444;
+    color: #ffffff;
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
+    transform: translateY(-1px);
+}
+
 /* Special Commands Cards */
 .auth-command-cards {
     display: flex;
