@@ -1,0 +1,26 @@
+<!-- Bot Offline Modal / Overlay (Visible when bot is offline or not in room) -->
+<div id="bot-offline-overlay" class="offline-overlay hidden">
+    <div class="offline-modal">
+        <div class="offline-icon">🔌</div>
+        <h2 class="offline-title">Bot Sedang Offline / Tidak Aktif</h2>
+        <p class="offline-desc">Website dashboard dan fungsi kontrol hanya dapat digunakan saat bot Nava aktif dan berada di dalam ruangan permainan.</p>
+        <div class="offline-status-details">
+            <div class="offline-step">
+                <span class="step-label">🌐 Web Server:</span>
+                <strong class="step-val text-success">Aktif (Port 3000)</strong>
+            </div>
+            <div class="offline-step">
+                <span class="step-label">🤖 Status Bot:</span>
+                <strong id="overlay-bot-status" class="step-val text-danger">Terputus</strong>
+            </div>
+            <div class="offline-step">
+                <span class="step-label">🚪 Status Ruangan:</span>
+                <strong id="overlay-room-status" class="step-val text-warning">Di Luar Ruangan</strong>
+            </div>
+        </div>
+        <div class="offline-pulse">
+            <span class="pulse-spinner"></span>
+            <span>Mencoba menghubungkan kembali secara otomatis...</span>
+        </div>
+    </div>
+</div>

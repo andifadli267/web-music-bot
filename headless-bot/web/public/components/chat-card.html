@@ -1,0 +1,39 @@
+<!-- Room Interaction & Bot Expression Card -->
+<section class="card chat-card">
+    <div class="card-header">
+        <div class="header-tag">
+            <span>💬</span>
+            <span>INTERAKSI RUANGAN & EKSPRESI BOT</span>
+        </div>
+        <span class="badge badge-accent">Live Comms</span>
+    </div>
+
+    <div class="chat-body">
+        <!-- Say to Room Form -->
+        <form id="form-chat" class="chat-form">
+            <div class="chat-input-row">
+                <input type="text" id="input-chat-msg" placeholder="Ketik pesan yang akan diucapkan bot Nava di dalam ruangan..." required autocomplete="off">
+                <select id="select-chat-type" class="chat-type-select">
+                    <option value="Emote">Pesan Emote (*)</option>
+                    <option value="Chat">Chat Normal</option>
+                </select>
+                <button type="submit" id="btn-submit-chat" class="btn btn-accent">
+                    <span>💬</span> Kirim
+                </button>
+            </div>
+        </form>
+
+        <!-- Facial Expression Quick Controls -->
+        <div class="expression-section">
+            <span class="expr-label">Ekspresi Wajah Bot:</span>
+            <div class="expr-buttons">
+                <button class="btn-expr" data-group="Eyes" data-expr="Happy">😊 Happy</button>
+                <button class="btn-expr" data-group="Eyes" data-expr="Wink">😉 Wink</button>
+                <button class="btn-expr" data-group="Mouth" data-expr="Sing">🎶 Sing</button>
+                <button class="btn-expr" data-group="Eyes" data-expr="Thinking">🤔 Thinking</button>
+                <button class="btn-expr" data-group="Eyes" data-expr="Blush">😳 Blush</button>
+                <button class="btn-expr" data-group="Eyes" data-expr="Closed">😌 Closed</button>
+            </div>
+        </div>
+    </div>
+</section>

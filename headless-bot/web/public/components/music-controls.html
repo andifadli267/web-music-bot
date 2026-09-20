@@ -1,0 +1,67 @@
+<!-- Music Control Panel Card -->
+<section class="card control-card">
+    <div class="card-header">
+        <div class="header-tag">
+            <span>🎛️</span>
+            <span>KONTROL PEMUTAR MUSIK</span>
+        </div>
+        <span class="badge badge-accent">Remote Control</span>
+    </div>
+
+    <div class="control-body">
+        <!-- Request Song Form -->
+        <form id="form-play" class="play-form">
+            <div class="form-row">
+                <div class="input-group flex-2">
+                    <label for="input-query">Judul Lagu atau URL (YouTube / .mp3 / .mp4):</label>
+                    <div class="input-with-icon">
+                        <span class="input-icon">🔍</span>
+                        <input type="text" id="input-query" placeholder="Contoh: Linkin Park Numb atau link YouTube..." required autocomplete="off">
+                    </div>
+                </div>
+                <div class="input-group flex-1">
+                    <label for="input-requester">Nama Pemesan:</label>
+                    <div class="input-with-icon">
+                        <span class="input-icon">👤</span>
+                        <input type="text" id="input-requester" placeholder="Nama Anda (Web DJ)" value="Web DJ">
+                    </div>
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="submit" id="btn-submit-play" class="btn btn-primary">
+                    <span>▶️</span> Putar / Antrikan Lagu
+                </button>
+            </div>
+        </form>
+
+        <!-- Quick Music Action Buttons -->
+        <div class="quick-actions-bar">
+            <button id="btn-action-skip" class="btn btn-secondary">
+                <span>⏭️</span> Skip Lagu
+            </button>
+            <button id="btn-action-stop" class="btn btn-danger">
+                <span>⏹️</span> Stop Musik
+            </button>
+            <button id="btn-action-clear" class="btn btn-warning">
+                <span>🗑️</span> Hapus Antrean
+            </button>
+        </div>
+
+        <!-- 24/7 Radio Station Quick Buttons -->
+        <div class="radio-section">
+            <div class="radio-label">
+                <span>📻</span> <strong>Stasiun Radio 24/7:</strong> (Klik untuk memutar langsung)
+            </div>
+            <div class="radio-grid" id="radio-grid">
+                <button class="btn-radio" data-genre="lofi">☕ Lofi Hip-Hop</button>
+                <button class="btn-radio" data-genre="synth">🌆 Synthwave</button>
+                <button class="btn-radio" data-genre="chillsynth">🌙 Chillwave</button>
+                <button class="btn-radio" data-genre="pop">✨ Pop Hits</button>
+                <button class="btn-radio" data-genre="dance">⚡ Dance / EDM</button>
+                <button class="btn-radio" data-genre="rock">🎸 Classic Rock</button>
+                <button class="btn-radio" data-genre="hiphop">🎤 Hip-Hop</button>
+                <button class="btn-radio" data-genre="jazz">🎷 Smooth Jazz</button>
+            </div>
+        </div>
+    </div>
+</section>

@@ -1,0 +1,71 @@
+<!-- Room Administration Card -->
+<section class="card admin-card">
+    <div class="card-header">
+        <div class="header-tag">
+            <span>🔒</span>
+            <span>PENGELOLAAN ADMINISTRASI RUANGAN</span>
+        </div>
+        <span class="badge badge-admin">Room Admin</span>
+    </div>
+
+    <!-- Admin Tabs -->
+    <div class="admin-tabs">
+        <button class="tab-btn active" data-tab="tab-admins">👑 Admin</button>
+        <button class="tab-btn" data-tab="tab-whitelist">📜 Whitelist</button>
+        <button class="tab-btn" data-tab="tab-ban">🚫 Banlist</button>
+        <button class="tab-btn" data-tab="tab-kick">👢 Kick</button>
+    </div>
+
+    <div class="admin-tab-content">
+        <!-- Tab: Admins -->
+        <div id="tab-admins" class="tab-pane active">
+            <form id="form-add-admin" class="admin-inline-form">
+                <input type="number" id="input-add-admin-id" placeholder="Nomor Member (Contoh: 245253)" required>
+                <button type="submit" class="btn btn-sm btn-primary">+ Tambah Admin</button>
+            </form>
+            <div class="admin-list-container">
+                <h5>Daftar Administrator Ruangan:</h5>
+                <div id="room-admins-list" class="badge-list">
+                    <span class="empty-hint">Tidak ada data admin.</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Whitelist -->
+        <div id="tab-whitelist" class="tab-pane">
+            <form id="form-add-wl" class="admin-inline-form">
+                <input type="number" id="input-add-wl-id" placeholder="Nomor Member (Contoh: 254143)" required>
+                <button type="submit" class="btn btn-sm btn-accent">+ Tambah Whitelist</button>
+            </form>
+            <div class="admin-list-container">
+                <h5>Daftar Whitelist:</h5>
+                <div id="room-whitelist-list" class="badge-list">
+                    <span class="empty-hint">Whitelist kosong (akses publik terbuka).</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Banlist -->
+        <div id="tab-ban" class="tab-pane">
+            <form id="form-add-ban" class="admin-inline-form">
+                <input type="number" id="input-add-ban-id" placeholder="Nomor Member (Contoh: 12345)" required>
+                <button type="submit" class="btn btn-sm btn-danger">+ Ban Member</button>
+            </form>
+            <div class="admin-list-container">
+                <h5>Daftar Banlist:</h5>
+                <div id="room-ban-list" class="badge-list">
+                    <span class="empty-hint">Tidak ada member yang di-ban.</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Kick -->
+        <div id="tab-kick" class="tab-pane">
+            <form id="form-kick" class="admin-inline-form">
+                <input type="number" id="input-kick-id" placeholder="Nomor Member yang ingin di-kick..." required>
+                <button type="submit" class="btn btn-sm btn-danger">👢 Kick dari Ruangan</button>
+            </form>
+            <p class="admin-note">⚠️ Pemain yang di-kick akan dikeluarkan langsung dari ruangan saat ini.</p>
+        </div>
+    </div>
+</section>

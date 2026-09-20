@@ -137,6 +137,22 @@ function startWebServer(port, getStatus, handleAction) {
             return;
         }
 
+        // Helper to assemble HTML partials/components
+        function renderHtmlWithPartials(fileContent) {
+            const includeRegex = /<!--\s*include:\s*([a-zA-Z0-9_\-\.\/]+)\s*-->/g;
+            return fileContent.replace(includeRegex, (match, relPath) => {
+                try {
+                    const compPath = path.join(PUBLIC_DIR, relPath);
+                    if (fs.existsSync(compPath)) {
+                        return fs.readFileSync(compPath, "utf-8");
+                    }
+                } catch (e) {
+                    console.error(`Failed to include component ${relPath}:`, e.message);
+                }
+                return match;
+            });
+        }
+
         // Static file serving
         let reqFile = pathname === "/" ? "index.html" : pathname.replace(/^\/+/, "");
         // Prevent directory traversal
@@ -147,13 +163,14 @@ function startWebServer(port, getStatus, handleAction) {
             if (err || !stats.isFile()) {
                 // Fallback to index.html for SPA if not found
                 const indexPath = path.join(PUBLIC_DIR, "index.html");
-                fs.readFile(indexPath, (readErr, content) => {
+                fs.readFile(indexPath, "utf-8", (readErr, content) => {
                     if (readErr) {
                         res.writeHead(404, { "Content-Type": "text/plain" });
                         return res.end("404 Not Found");
                     }
+                    const rendered = renderHtmlWithPartials(content);
                     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-                    res.end(content);
+                    res.end(rendered);
                 });
                 return;
             }
@@ -161,14 +178,26 @@ function startWebServer(port, getStatus, handleAction) {
             const ext = path.extname(filePath).toLowerCase();
             const contentType = MIME_TYPES[ext] || "application/octet-stream";
 
-            fs.readFile(filePath, (readErr, content) => {
-                if (readErr) {
-                    res.writeHead(500, { "Content-Type": "text/plain" });
-                    return res.end("500 Internal Server Error");
-                }
-                res.writeHead(200, { "Content-Type": contentType });
-                res.end(content);
-            });
+            if (ext === ".html") {
+                fs.readFile(filePath, "utf-8", (readErr, content) => {
+                    if (readErr) {
+                        res.writeHead(500, { "Content-Type": "text/plain" });
+                        return res.end("500 Internal Server Error");
+                    }
+                    const rendered = renderHtmlWithPartials(content);
+                    res.writeHead(200, { "Content-Type": contentType });
+                    res.end(rendered);
+                });
+            } else {
+                fs.readFile(filePath, (readErr, content) => {
+                    if (readErr) {
+                        res.writeHead(500, { "Content-Type": "text/plain" });
+                        return res.end("500 Internal Server Error");
+                    }
+                    res.writeHead(200, { "Content-Type": contentType });
+                    res.end(content);
+                });
+            }
         });
     });
 

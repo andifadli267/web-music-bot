@@ -1,0 +1,58 @@
+<!-- Now Playing Card -->
+<section class="card now-playing-card">
+    <div class="card-header">
+        <div class="header-tag">
+            <span class="wave-icon">
+                <i></i><i></i><i></i><i></i><i></i>
+            </span>
+            <span>NOW PLAYING</span>
+        </div>
+        <div id="source-badge" class="badge badge-source">YouTube</div>
+    </div>
+
+    <div class="player-content">
+        <!-- Vinyl Album Art / Visualizer -->
+        <div class="vinyl-container">
+            <div class="vinyl-disc" id="vinyl-disc">
+                <div class="vinyl-ring"></div>
+                <div class="vinyl-center">
+                    <span id="vinyl-icon">🎵</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Track Information -->
+        <div class="track-details">
+            <h2 id="track-title" class="track-title">Tidak ada musik yang diputar</h2>
+            <p id="track-subtitle" class="track-subtitle">Gunakan kontrol di bawah atau ketik !play di room chat</p>
+
+            <!-- Requester Information -->
+            <div class="requester-box" id="requester-box">
+                <span class="req-icon">👤</span>
+                <span class="req-label">Requested by:</span>
+                <strong id="requester-name" class="req-name">-</strong>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="progress-section">
+                <div class="progress-bar-bg">
+                    <div id="progress-bar-fill" class="progress-bar-fill" style="width: 0%;"></div>
+                </div>
+                <div class="time-display">
+                    <span id="time-current">0:00</span>
+                    <span id="time-total">0:00</span>
+                </div>
+            </div>
+
+            <!-- Local Web Audio Player -->
+            <div class="web-player-control">
+                <audio id="web-audio" preload="none"></audio>
+                <button id="btn-listen-web" class="btn-listen">
+                    <span id="listen-icon">🔊</span>
+                    <span id="listen-text">Dengarkan di Browser</span>
+                </button>
+                <span class="web-player-hint">Sinkron otomatis dengan audio room game</span>
+            </div>
+        </div>
+    </div>
+</section>
