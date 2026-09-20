@@ -285,8 +285,7 @@ function handleAdminWhisper(context, rawText, sender) {
 
     // 1. HELP COMMAND VIA WHISPER - Available to EVERYONE (Both regular members & admins)
     if (cmd === "!help" || cmd === "!music") {
-        const isAdmin = isRoomAdmin(botPlayer, currentRoomData, senderId);
-        sendWhisper(socket, senderId, getHelpMessage(myName, isAdmin));
+        sendWhisper(socket, senderId, getHelpMessage(myName));
         return;
     }
 

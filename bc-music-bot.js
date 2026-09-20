@@ -645,8 +645,13 @@
             }
         }
 
-        if (cmd === "!help" || cmd === "!adminhelp" || cmd === "!adminmenu" || cmd === "!menu") {
+        if (cmd === "!adminmenu" || cmd === "!adminhelp") {
             sendWhisper(senderId, `🔒 [${myName} Admin Menu]:\n• Admin: !admin <id> | !deladmin <id> | !adminlist\n• Whitelist: !whitelist <id> | !delwhitelist <id> | !whitelistlist\n• Banlist: !ban <id> | !unban <id> | !banlist\n• Kick: !kick <id>`);
+            return;
+        }
+
+        if (cmd === "!help" || cmd === "!music") {
+            sendWhisper(senderId, `🎵 [${myName} Music]: !radio <genre> | !play <url> | !yt <id> | !pause | !resume | !stop | !volume <0-100> | !np`);
             return;
         }
 
@@ -728,7 +733,7 @@
             return;
         }
 
-        sendWhisper(senderId, `❓ Perintah whisper "${cmd}" tidak dikenal. Ketik !help untuk melihat menu admin.`);
+        sendWhisper(senderId, `❓ Perintah whisper "${cmd}" tidak dikenal. Ketik !adminmenu untuk melihat menu admin.`);
     }
 
     // Check for players entering room to auto-welcome

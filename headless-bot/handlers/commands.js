@@ -102,17 +102,13 @@ function getAdminMenuMessage(myName) {
         `Contoh: /w ${myName} !whitelist 254143`;
 }
 
-function getHelpMessage(myName, isAdmin = false) {
-    let msg = `🎵 [${myName} Music Commands]:\n` +
+function getHelpMessage(myName) {
+    return `🎵 [${myName} Music Commands]:\n` +
         `• Putar: !play <judul/link>\n` +
         `• Antrean: !queue | !skip | !clear | !stop | !np\n` +
         `• Radio: !radio <genre> (lofi, synth, chillsynth, pop, dance, rock, hiphop, jazz)\n` +
         `• Pertemanan: !friend\n` +
         `• Web: Dashboard aktif di http://localhost:3000`;
-    if (isAdmin) {
-        msg += `\n\n${getAdminMenuMessage(myName)}`;
-    }
-    return msg;
 }
 
 /**
@@ -479,8 +475,7 @@ function handleRoomCommand(context, text, sender) {
 
     if (cmd === "!help" || cmd === "!music") {
         changeFaceExpression(socket, "Eyes", "Wink");
-        const isAdmin = checkIsAdmin(botPlayer, currentRoomData, sender);
-        sendWhisper(socket, sender, getHelpMessage(myName, isAdmin));
+        sendWhisper(socket, sender, getHelpMessage(myName));
         return;
     } else if (cmd === "!adminmenu" || cmd === "!adminhelp") {
         changeFaceExpression(socket, "Eyes", "Wink");
