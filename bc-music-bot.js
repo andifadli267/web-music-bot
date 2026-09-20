@@ -599,7 +599,7 @@
             cmd === "!whitelist" || cmd === "!wl" || cmd === "!addwhitelist" || cmd === "!delwhitelist" ||
             cmd === "!ban" || cmd === "!addban" || cmd === "!unban" || cmd === "!banlist"
         ) {
-            announceChat(`* 🔒 [${getBotName()}] Pengelolaan Admin, Whitelist, dan Banlist hanya dapat dijalankan oleh Administrator ruangan melalui bisikan privat: /w ${getBotName()} <perintah>`);
+            sendWhisper(senderMemberNumber, `* 🔒 [${getBotName()}] Pengelolaan Admin, Whitelist, dan Banlist hanya dapat dijalankan oleh Administrator ruangan melalui bisikan privat: /w ${getBotName()} <perintah>`);
         }
     }
 

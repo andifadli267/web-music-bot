@@ -228,7 +228,7 @@ function playNextInQueue(context) {
  * Processes chat commands from room members.
  */
 function handleRoomCommand(context, text, sender) {
-    const { socket, botPlayer, currentRoomData, sendRoomEmote, changeFaceExpression, getCharacterName } = context;
+    const { socket, botPlayer, currentRoomData, sendRoomEmote, sendWhisper, changeFaceExpression, getCharacterName } = context;
     const parts = text.split(/\s+/);
     const cmd = parts[0].toLowerCase();
     const myName = botPlayer ? botPlayer.Name : CONFIG.accountName;
@@ -237,7 +237,7 @@ function handleRoomCommand(context, text, sender) {
         changeFaceExpression(socket, "Eyes", "Wink");
         sendRoomEmote(
             socket,
-            `* 🎵 [${myName} Music]: Standalone DJ playing synced room music for everyone! Commands: !play <song/link> | !queue | !skip | !clear | !radio <genre> | !stop | !np | !friend (Admin via whisper: /w ${myName} !help)`
+            `* 🎵 [${myName} Music]: Standalone DJ playing synced room music for everyone! Commands: !play <song/link> | !queue | !skip | !clear | !radio <genre> | !stop | !np | !friend`
         );
         setTimeout(() => {
             sendRoomEmote(
@@ -441,10 +441,13 @@ function handleRoomCommand(context, text, sender) {
         cmd === "!whitelist" || cmd === "!wl" || cmd === "!addwhitelist" || cmd === "!delwhitelist" ||
         cmd === "!ban" || cmd === "!addban" || cmd === "!unban" || cmd === "!banlist"
     ) {
-        sendRoomEmote(
-            socket,
-            `* 🔒 [${myName} Music] Pengelolaan Admin, Whitelist, dan Banlist hanya dapat dijalankan oleh Administrator ruangan melalui bisikan privat: /w ${myName} <perintah>`
-        );
+        if (typeof sendWhisper === "function") {
+            sendWhisper(
+                socket,
+                sender,
+                `🔒 [${myName} Music] Pengelolaan Admin, Whitelist, dan Banlist hanya dapat dijalankan oleh Administrator melalui bisikan privat: /w ${myName} <perintah>`
+            );
+        }
     } else if (cmd === "!friend" || cmd === "!addfriend" || cmd === "!teman") {
         const targetId = sender;
         const targetName = getCharacterName(targetId);
