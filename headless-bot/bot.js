@@ -8,7 +8,15 @@
  */
 
 const { io } = require("socket.io-client");
-const { CONFIG, MASTER_ADMINS, CONVERT_DIR, STATIONS } = require("./config");
+const {
+    CONFIG,
+    MASTER_ADMINS,
+    DEFAULT_MASTER_ADMINS,
+    CONVERT_DIR,
+    STATIONS,
+    addAuthorizedMember,
+    removeAuthorizedMember,
+} = require("./config");
 const { detectPythonRuntime, cleanLocalFiles } = require("./services/audio");
 const { acceptFriendRequest } = require("./services/friends");
 const {
@@ -58,6 +66,12 @@ function getBotStatus() {
         name: STATIONS[key].name,
     }));
 
+    const authMembers = Array.from(MASTER_ADMINS).map(id => ({
+        memberNumber: id,
+        name: getCharacterName(id),
+        isPrimary: DEFAULT_MASTER_ADMINS.includes(id),
+    }));
+
     return {
         bot: {
             name: botPlayer ? (botPlayer.Name || CONFIG.accountName) : CONFIG.accountName,
@@ -86,6 +100,7 @@ function getBotStatus() {
         },
         queue: queueState.songQueue || [],
         stations: stationList,
+        authorizedMembers: authMembers,
     };
 }
 
@@ -151,6 +166,28 @@ async function handleWebAction(data) {
                 default:
                     return { success: false, message: `Unknown admin sub-action '${subAction}'.` };
             }
+        }
+        case "authorizedMember": {
+            const { subAction, memberNumber, roomName, space, password } = data;
+            if (subAction === "add") {
+                const res = addAuthorizedMember(memberNumber);
+                notifyWebUpdate();
+                return res;
+            }
+            if (subAction === "remove") {
+                const res = removeAuthorizedMember(memberNumber);
+                notifyWebUpdate();
+                return res;
+            }
+            if (subAction === "switchRoom") {
+                if (!roomName || !roomName.trim()) {
+                    return { success: false, message: "Nama ruangan tidak boleh kosong." };
+                }
+                const target = roomName.trim();
+                switchRoom(currentSocket, target, space || "", password || "");
+                return { success: true, message: `Memerintahkan bot untuk berpindah ke ruangan "${target}"...` };
+            }
+            return { success: false, message: `Unknown authorizedMember sub-action '${subAction}'.` };
         }
         default:
             return { success: false, message: `Unknown action '${action}'.` };

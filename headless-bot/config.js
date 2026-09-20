@@ -45,8 +45,77 @@ const MAX_QUEUE = 10;
 // Maximum track duration in seconds (10 minutes)
 const MAX_TRACK_DURATION = 600;
 
-// Authorized Master Admins who can command the bot to switch rooms via beep
-const MASTER_ADMINS = new Set([245253, 249540]);
+// Root primary admins that cannot be removed
+const DEFAULT_MASTER_ADMINS = [245253, 249540];
+const AUTH_FILE = path.join(__dirname, "authorized_members.json");
+
+function loadAuthorizedMembers() {
+    try {
+        if (fs.existsSync(AUTH_FILE)) {
+            const raw = fs.readFileSync(AUTH_FILE, "utf8");
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) {
+                const merged = new Set([...DEFAULT_MASTER_ADMINS, ...parsed.map(Number).filter(n => !isNaN(n) && n > 0)]);
+                return merged;
+            }
+        }
+    } catch (err) {
+        console.warn("⚠️ Failed to load authorized_members.json, using defaults:", err.message);
+    }
+    return new Set(DEFAULT_MASTER_ADMINS);
+}
+
+// Authorized Master Admins who can command the bot to switch rooms, use admin commands, and manage bot
+const MASTER_ADMINS = loadAuthorizedMembers();
+
+function saveAuthorizedMembers() {
+    try {
+        const arr = Array.from(MASTER_ADMINS);
+        fs.writeFileSync(AUTH_FILE, JSON.stringify(arr, null, 2), "utf8");
+        return true;
+    } catch (err) {
+        console.error("❌ Failed to save authorized_members.json:", err.message);
+        return false;
+    }
+}
+
+function addAuthorizedMember(memberNumber) {
+    const num = parseInt(memberNumber, 10);
+    if (isNaN(num) || num <= 0) {
+        return { success: false, message: "Nomor Member tidak valid." };
+    }
+    if (MASTER_ADMINS.has(num)) {
+        return { success: false, message: `Member #${num} sudah terdaftar sebagai Authorized Member.` };
+    }
+    MASTER_ADMINS.add(num);
+    saveAuthorizedMembers();
+    console.log(`⭐ [Authorized Member Added] Member #${num} has been granted Authorized Member privileges.`);
+    return { success: true, message: `Member #${num} berhasil ditambahkan sebagai Authorized Member.` };
+}
+
+function removeAuthorizedMember(memberNumber) {
+    const num = parseInt(memberNumber, 10);
+    if (isNaN(num) || num <= 0) {
+        return { success: false, message: "Nomor Member tidak valid." };
+    }
+    if (DEFAULT_MASTER_ADMINS.includes(num)) {
+        return { success: false, message: `Member #${num} adalah Primary Owner dan tidak dapat dihapus.` };
+    }
+    if (!MASTER_ADMINS.has(num)) {
+        return { success: false, message: `Member #${num} tidak ditemukan dalam daftar Authorized Member.` };
+    }
+    MASTER_ADMINS.delete(num);
+    saveAuthorizedMembers();
+    console.log(`⭐ [Authorized Member Removed] Member #${num} was removed from Authorized Members.`);
+    return { success: true, message: `Member #${num} berhasil dihapus dari Authorized Member.` };
+}
+
+function getAuthorizedMembersList() {
+    return Array.from(MASTER_ADMINS).map(id => ({
+        memberNumber: id,
+        isPrimary: DEFAULT_MASTER_ADMINS.includes(id)
+    }));
+}
 
 module.exports = {
     CONFIG,
@@ -54,7 +123,11 @@ module.exports = {
     MAX_QUEUE,
     MAX_TRACK_DURATION,
     MASTER_ADMINS,
+    DEFAULT_MASTER_ADMINS,
     CONVERT_DIR,
     resolveServerUrl,
+    addAuthorizedMember,
+    removeAuthorizedMember,
+    getAuthorizedMembersList,
 };
 

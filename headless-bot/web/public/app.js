@@ -344,6 +344,9 @@ function updateDashboard(data) {
 
     // 5. Update Admin Panels (Admins, Whitelist, Banlist)
     updateAdminPanels(data);
+
+    // 6. Update Authorized Members Panel
+    updateAuthorizedMembers(data);
 }
 
 // Render Room Administration badges
@@ -412,6 +415,48 @@ window.handleRemoveWhitelist = function(memberNumber) {
 
 window.handleRemoveBan = function(memberNumber) {
     sendBotAction("admin", { subAction: "removeBan", memberNumber });
+};
+
+// Render Authorized Members list
+function updateAuthorizedMembers(data) {
+    const listEl = document.getElementById("authorized-members-list");
+    const countBadge = document.getElementById("auth-count-badge");
+    if (!listEl) return;
+
+    const authMembers = Array.isArray(data.authorizedMembers) ? data.authorizedMembers : [];
+    if (countBadge) {
+        countBadge.textContent = `${authMembers.length} Member`;
+    }
+
+    if (authMembers.length > 0) {
+        listEl.innerHTML = authMembers.map(m => {
+            const isPrimary = Boolean(m.isPrimary);
+            const removeBtn = isPrimary
+                ? `<span class="auth-pill-tag primary">Primary Owner</span>`
+                : `<button class="member-remove-btn" title="Hapus Authorized Member" onclick="handleRemoveAuthMember(${m.memberNumber})">✕</button>`;
+            
+            return `
+                <div class="auth-member-pill ${isPrimary ? 'is-primary' : ''}">
+                    <div class="auth-pill-left">
+                        <span class="auth-pill-star">⭐</span>
+                        <strong class="auth-pill-id">#${m.memberNumber}</strong>
+                        <span class="auth-pill-name">(${escapeHtml(m.name || 'Member')})</span>
+                    </div>
+                    <div class="auth-pill-right">
+                        ${removeBtn}
+                    </div>
+                </div>
+            `;
+        }).join("");
+    } else {
+        listEl.innerHTML = `<span class="empty-hint">Tidak ada authorized member terdaftar.</span>`;
+    }
+}
+
+// Global removal handler for authorized members
+window.handleRemoveAuthMember = function(memberNumber) {
+    if (!confirm(`Hapus Member #${memberNumber} dari daftar Authorized Member?`)) return;
+    sendBotAction("authorizedMember", { subAction: "remove", memberNumber });
 };
 
 // Setup DOM Event Listeners
@@ -566,6 +611,34 @@ document.addEventListener("DOMContentLoaded", () => {
             listenText.textContent = "Dengarkan di Browser";
         }
     });
+
+    // 8b. Authorized Member Management & Quick Switch Room
+    const formAddAuth = document.getElementById("form-add-auth");
+    if (formAddAuth) {
+        formAddAuth.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const input = document.getElementById("input-add-auth-id");
+            const memberNumber = parseInt(input.value, 10);
+            if (memberNumber) {
+                await sendBotAction("authorizedMember", { subAction: "add", memberNumber });
+                input.value = "";
+            }
+        });
+    }
+
+    const formQuickRoom = document.getElementById("form-quick-switch-room");
+    if (formQuickRoom) {
+        formQuickRoom.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const roomName = (document.getElementById("input-quick-room-name").value || "").trim();
+            const password = (document.getElementById("input-quick-room-pass").value || "").trim();
+            if (!roomName) return;
+            showToast(`Memerintahkan bot untuk bergabung ke "${roomName}"...`, "info");
+            await sendBotAction("authorizedMember", { subAction: "switchRoom", roomName, password });
+            document.getElementById("input-quick-room-name").value = "";
+            document.getElementById("input-quick-room-pass").value = "";
+        });
+    }
 
     // 9. Initialize Real-Time Server-Sent Events (SSE) for instant auto-refresh on any bot input
     function initEventStream() {
