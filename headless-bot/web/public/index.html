@@ -5,8 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nava Music DJ - Live Room & Music Dashboard</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -199,81 +198,6 @@
                     </div>
                 </section>
 
-                <!-- Room Interaction & Bot Expression Card -->
-                <section class="card chat-card">
-                    <div class="card-header">
-                        <div class="header-tag">
-                            <span>💬</span>
-                            <span>INTERAKSI RUANGAN & EKSPRESI BOT</span>
-                        </div>
-                    </div>
-
-                    <div class="chat-body">
-                        <!-- Say to Room Form -->
-                        <form id="form-chat" class="chat-form">
-                            <div class="chat-input-row">
-                                <input type="text" id="input-chat-msg" placeholder="Ketik pesan yang akan diucapkan bot Nava di dalam ruangan..." required autocomplete="off">
-                                <select id="select-chat-type" class="chat-type-select">
-                                    <option value="Emote">Pesan Emote (*)</option>
-                                    <option value="Chat">Chat Normal</option>
-                                </select>
-                                <button type="submit" id="btn-submit-chat" class="btn btn-accent">
-                                    <span>💬</span> Kirim
-                                </button>
-                            </div>
-                        </form>
-
-                        <!-- Facial Expression Quick Controls -->
-                        <div class="expression-section">
-                            <span class="expr-label">Ekspresi Wajah Bot:</span>
-                            <div class="expr-buttons">
-                                <button class="btn-expr" data-group="Eyes" data-expr="Happy">😊 Happy</button>
-                                <button class="btn-expr" data-group="Eyes" data-expr="Wink">😉 Wink</button>
-                                <button class="btn-expr" data-group="Mouth" data-expr="Sing">🎶 Sing</button>
-                                <button class="btn-expr" data-group="Eyes" data-expr="Thinking">🤔 Thinking</button>
-                                <button class="btn-expr" data-group="Eyes" data-expr="Blush">😳 Blush</button>
-                                <button class="btn-expr" data-group="Eyes" data-expr="Closed">😌 Closed</button>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-            </div>
-
-            <!-- Right Column: Queue, Room Status, and Room Admin -->
-            <div class="grid-col col-queue">
-                <!-- Room Status & Members Card -->
-                <section class="card room-card">
-                    <div class="card-header">
-                        <div class="header-tag">
-                            <span>📍</span>
-                            <span>ROOM STATUS & MEMBERS</span>
-                        </div>
-                        <span id="member-count-badge" class="badge badge-counter">0 Pemain</span>
-                    </div>
-
-                    <div class="room-details-grid">
-                        <div class="room-meta-item">
-                            <span class="meta-label">Nama Ruangan</span>
-                            <strong id="meta-room-name" class="meta-value">-</strong>
-                        </div>
-                        <div class="room-meta-item">
-                            <span class="meta-label">Bot Character</span>
-                            <strong id="meta-bot-name" class="meta-value">Nava (#258115)</strong>
-                        </div>
-                        <div class="room-meta-item">
-                            <span class="meta-label">Total Teman</span>
-                            <strong id="meta-friends-count" class="meta-value">-</strong>
-                        </div>
-                    </div>
-
-                    <div class="players-section">
-                        <h4 class="section-title">Pemain di Dalam Ruangan:</h4>
-                        <div id="players-list" class="players-tags">
-                            <span class="player-tag empty-tag">Sedang memuat data pemain...</span>
-                        </div>
-                    </div>
-                </section>
-
                 <!-- Authorized Members & Special Privileges Card -->
                 <section class="card authorized-card">
                     <div class="card-header">
@@ -360,6 +284,42 @@
                                     <p class="cmd-desc">Authorized Member memiliki hak kekebalan penuh (tidak dapat di-kick atau di-ban oleh bot) dan hak akses penuh ke seluruh kontrol Web Dashboard.</p>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Right Column: Queue, Room Status, and Room Admin -->
+            <div class="grid-col col-queue">
+                <!-- Room Status & Members Card -->
+                <section class="card room-card">
+                    <div class="card-header">
+                        <div class="header-tag">
+                            <span>📍</span>
+                            <span>ROOM STATUS & MEMBERS</span>
+                        </div>
+                        <span id="member-count-badge" class="badge badge-counter">0 Pemain</span>
+                    </div>
+
+                    <div class="room-details-grid">
+                        <div class="room-meta-item">
+                            <span class="meta-label">Nama Ruangan</span>
+                            <strong id="meta-room-name" class="meta-value">-</strong>
+                        </div>
+                        <div class="room-meta-item">
+                            <span class="meta-label">Bot Character</span>
+                            <strong id="meta-bot-name" class="meta-value">Nava (#258115)</strong>
+                        </div>
+                        <div class="room-meta-item">
+                            <span class="meta-label">Total Teman</span>
+                            <strong id="meta-friends-count" class="meta-value">-</strong>
+                        </div>
+                    </div>
+
+                    <div class="players-section">
+                        <h4 class="section-title">Pemain di Dalam Ruangan:</h4>
+                        <div id="players-list" class="players-tags">
+                            <span class="player-tag empty-tag">Sedang memuat data pemain...</span>
                         </div>
                     </div>
                 </section>
@@ -452,6 +412,46 @@
                                 <button type="submit" class="btn btn-sm btn-danger">👢 Kick dari Ruangan</button>
                             </form>
                             <p class="admin-note">⚠️ Pemain yang di-kick akan dikeluarkan langsung dari ruangan saat ini.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Room Interaction & Bot Expression Card -->
+                <section class="card chat-card">
+                    <div class="card-header">
+                        <div class="header-tag">
+                            <span>💬</span>
+                            <span>INTERAKSI RUANGAN & EKSPRESI BOT</span>
+                        </div>
+                        <span class="badge badge-accent">Live Comms</span>
+                    </div>
+
+                    <div class="chat-body">
+                        <!-- Say to Room Form -->
+                        <form id="form-chat" class="chat-form">
+                            <div class="chat-input-row">
+                                <input type="text" id="input-chat-msg" placeholder="Ketik pesan yang akan diucapkan bot Nava di dalam ruangan..." required autocomplete="off">
+                                <select id="select-chat-type" class="chat-type-select">
+                                    <option value="Emote">Pesan Emote (*)</option>
+                                    <option value="Chat">Chat Normal</option>
+                                </select>
+                                <button type="submit" id="btn-submit-chat" class="btn btn-accent">
+                                    <span>💬</span> Kirim
+                                </button>
+                            </div>
+                        </form>
+
+                        <!-- Facial Expression Quick Controls -->
+                        <div class="expression-section">
+                            <span class="expr-label">Ekspresi Wajah Bot:</span>
+                            <div class="expr-buttons">
+                                <button class="btn-expr" data-group="Eyes" data-expr="Happy">😊 Happy</button>
+                                <button class="btn-expr" data-group="Eyes" data-expr="Wink">😉 Wink</button>
+                                <button class="btn-expr" data-group="Mouth" data-expr="Sing">🎶 Sing</button>
+                                <button class="btn-expr" data-group="Eyes" data-expr="Thinking">🤔 Thinking</button>
+                                <button class="btn-expr" data-group="Eyes" data-expr="Blush">😳 Blush</button>
+                                <button class="btn-expr" data-group="Eyes" data-expr="Closed">😌 Closed</button>
+                            </div>
                         </div>
                     </div>
                 </section>
