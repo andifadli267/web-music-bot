@@ -64,6 +64,23 @@ let botPlayer = null;
 let currentRoomData = null;
 let isInRoom = false;
 let knownCharacters = new Set();
+const characterNames = new Map();
+
+function getCharacterName(memberNumber) {
+    if (!memberNumber) return "Someone";
+    if (characterNames.has(memberNumber)) {
+        return characterNames.get(memberNumber);
+    }
+    if (currentRoomData && Array.isArray(currentRoomData.Character)) {
+        const found = currentRoomData.Character.find(c => c.MemberNumber === memberNumber);
+        if (found && found.Name) {
+            characterNames.set(memberNumber, found.Name);
+            return found.Name;
+        }
+    }
+    return `Member #${memberNumber}`;
+}
+
 let vibeTimer = null;
 let retryJoinTimer = null;
 let isConverting = false;
@@ -285,6 +302,9 @@ async function startBot() {
         }, 1500);
 
         charList.forEach(c => {
+            if (c.MemberNumber && c.Name) {
+                characterNames.set(c.MemberNumber, c.Name);
+            }
             if (c.MemberNumber !== botPlayer.MemberNumber && !knownCharacters.has(c.MemberNumber)) {
                 knownCharacters.add(c.MemberNumber);
             }
@@ -297,6 +317,9 @@ async function startBot() {
     socket.on("ChatRoomSyncMemberJoin", (data) => {
         if (!data || !data.Character) return;
         const newChar = data.Character;
+        if (newChar && newChar.MemberNumber && newChar.Name) {
+            characterNames.set(newChar.MemberNumber, newChar.Name);
+        }
         if (botPlayer && newChar.MemberNumber === botPlayer.MemberNumber) return;
         if (!knownCharacters.has(newChar.MemberNumber)) {
             knownCharacters.add(newChar.MemberNumber);
@@ -376,7 +399,7 @@ async function startBot() {
 
         const isInternalAddon = /^(ECHO_|PCM_|CG_|BCEMsg|BCXMsg|KIKILINK|Liko)/.test(content);
         if (!isInternalAddon) {
-            console.log(`💬 [Member #${sender}]: "${content}"`);
+            console.log(`💬 [${getCharacterName(sender)} (#${sender})]: "${content}"`);
         }
 
         const cmdText = extractCommand(content);
@@ -581,11 +604,12 @@ function playNextInQueue(socket) {
 
     if (songQueue.length > 0) {
         const nextSong = songQueue.shift();
-        console.log(`[Queue] Playing next track: "${nextSong.title}" (Requested by Member #${nextSong.requestedBy})`);
+        const reqName = nextSong.requesterName || getCharacterName(nextSong.requestedBy);
+        console.log(`[Queue] Playing next track: "${nextSong.title}" (Requested by ${reqName})`);
         setRoomMusic(socket, nextSong.directUrl, `YouTube: ${nextSong.title}`, nextSong.duration, nextSong);
         sendRoomEmote(
             socket,
-            `* 🎶 [${myName} Music] Up next from queue: "${nextSong.title}" (Requested by Member #${nextSong.requestedBy})!`
+            `* 🎶 [${myName} Music] Up next from queue: "${nextSong.title}" (Requested by ${reqName})!`
         );
     } else {
         currentTrack = null;
@@ -873,13 +897,15 @@ function handleRoomCommand(socket, text, sender) {
                     return;
                 }
                 const trackTitle = `Custom Audio (${path.basename(new URL(extractedUrl).pathname)})`;
+                const senderName = getCharacterName(sender);
                 songQueue.push({
                     title: trackTitle,
                     directUrl: extractedUrl,
                     duration: 0,
                     requestedBy: sender,
+                    requesterName: senderName,
                 });
-                sendRoomEmote(socket, `* 📋 [${myName} Music] Added to queue (#${songQueue.length}/${MAX_QUEUE}): "${trackTitle}" (Requested by Member #${sender}) 🎶`);
+                sendRoomEmote(socket, `* 📋 [${myName} Music] Added to queue (#${songQueue.length}/${MAX_QUEUE}): "${trackTitle}" (Requested by ${senderName}) 🎶`);
             }
             return;
         }
@@ -913,6 +939,7 @@ function handleRoomCommand(socket, text, sender) {
         convertYoutubeToMp3(targetSong)
             .then(({ title, directUrl, duration }) => {
                 isConverting = false;
+                const senderName = getCharacterName(sender);
 
                 if (!currentTrack) {
                     // Nothing playing: play immediately
@@ -921,6 +948,7 @@ function handleRoomCommand(socket, text, sender) {
                         directUrl,
                         duration,
                         requestedBy: sender,
+                        requesterName: senderName,
                     });
                 } else {
                     // Something is already playing: add to queue
@@ -929,11 +957,12 @@ function handleRoomCommand(socket, text, sender) {
                         directUrl,
                         duration,
                         requestedBy: sender,
+                        requesterName: senderName,
                     });
                     changeFaceExpression(socket, "Eyes", "Happy");
                     sendRoomEmote(
                         socket,
-                        `* 📋 [${myName} Music] Added to queue (#${songQueue.length}/${MAX_QUEUE}): "${title}" (Requested by Member #${sender}) 🎶`
+                        `* 📋 [${myName} Music] Added to queue (#${songQueue.length}/${MAX_QUEUE}): "${title}" (Requested by ${senderName}) 🎶`
                     );
                 }
             })
@@ -957,12 +986,14 @@ function handleRoomCommand(socket, text, sender) {
 
         let lines = [`* 📋 [${myName} Music] Queue Status (${songQueue.length}/${MAX_QUEUE}):`];
         if (currentTrack) {
-            lines.push(`▶️ [Now Playing]: "${currentTrack.title}" (Requested by Member #${currentTrack.requestedBy || 'DJ'})`);
+            const curReq = currentTrack.requesterName || getCharacterName(currentTrack.requestedBy);
+            lines.push(`▶️ [Now Playing]: "${currentTrack.title}" (Requested by ${curReq})`);
         }
         if (songQueue.length > 0) {
             lines.push(`📑 [Upcoming Tracks]:`);
             songQueue.forEach((item, idx) => {
-                lines.push(`${idx + 1}. "${item.title}" (Requested by #${item.requestedBy})`);
+                const req = item.requesterName || getCharacterName(item.requestedBy);
+                lines.push(`${idx + 1}. "${item.title}" (Requested by ${req})`);
             });
         } else {
             lines.push(`(No more tracks in queue)`);
@@ -978,7 +1009,7 @@ function handleRoomCommand(socket, text, sender) {
         }
         sendRoomEmote(
             socket,
-            `* ⏭️ [${myName} Music] Track skipped by Member #${sender}!`
+            `* ⏭️ [${myName} Music] Track skipped by ${getCharacterName(sender)}!`
         );
         playNextInQueue(socket);
     } else if (cmd === "!clear") {
@@ -986,7 +1017,7 @@ function handleRoomCommand(socket, text, sender) {
         songQueue.length = 0;
         sendRoomEmote(
             socket,
-            `* 🗑️ [${myName} Music] Cleared ${count} song(s) from the queue (Requested by Member #${sender}).`
+            `* 🗑️ [${myName} Music] Cleared ${count} song(s) from the queue (Requested by ${getCharacterName(sender)}).`
         );
     } else if (cmd === "!radio") {
         const key = (parts[1] || "").toLowerCase().replace(/^[\(<\[\{"']+|[\)>\]\}"']+$/g, "").trim();
@@ -1084,7 +1115,7 @@ function handleRoomCommand(socket, text, sender) {
 
         sendRoomEmote(
             socket,
-            `* 📜 [${myName} Music] Member #${targetId} has been successfully added to the room Whitelist (Authorized by Admin #${sender})!`
+            `* 📜 [${myName} Music] Member #${targetId} has been successfully added to the room Whitelist (Authorized by Admin ${getCharacterName(sender)})!`
         );
     }
 }
