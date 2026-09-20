@@ -349,28 +349,58 @@ async function startBot() {
         }
 
         const space = data.ChatRoomSpace || "";
-        const isJoinHere = /(?:join\s+here|join\s+sini|masuk\s+sini)/i.test(msg);
-        const joinMatch = msg.match(/(?:join\s+here|join\s+sini|masuk\s+sini)(?:\s*[:\-]?\s*(.+))?/i);
 
-        let targetRoomToJoin = null;
+        // Clean invisible unicode characters and addon prefixes
+        let cleanMsg = msg.replace(/[\u200B-\u200D\uFEFF\u2060-\u2064]/g, '').trim();
+        cleanMsg = cleanMsg.replace(/LikoMAT:[a-zA-Z0-9_-]+/gi, '').trim();
 
-        if (isMaster && isJoinHere) {
-            // Priority 1: Official ChatRoomName attached to the beep by the game client
-            if (data.ChatRoomName) {
-                targetRoomToJoin = data.ChatRoomName;
-            } 
-            // Priority 2: Room name manually typed after "join here"
-            else if (joinMatch && joinMatch[1] && joinMatch[1].trim()) {
-                let cleaned = joinMatch[1].replace(/[\u200B-\u200D\uFEFF\u2060-\u2064]/g, '');
-                cleaned = cleaned.replace(/LikoMAT:[a-zA-Z0-9_-]+/gi, '').trim();
-                const roomNameCandidate = cleaned.replace(/^["'(\[]+|["')\]]+$/g, '').trim();
-                if (roomNameCandidate && !roomNameCandidate.includes("{") && !roomNameCandidate.includes("}")) {
-                    targetRoomToJoin = roomNameCandidate;
+        // Check for join commands: "join <room>", "!join <room>", "join here", "join sini", "masuk <room>", etc.
+        const isJoinCommand = /^(?:!|\/)?(?:join\s+here|join\s+sini|masuk\s+sini|join|masuk)(?:\s+|$)/i.test(cleanMsg);
+
+        if (isJoinCommand) {
+            if (!isMaster) {
+                console.warn(`⛔ [Unauthorized Beep Command] Member #${senderId} (${senderName}) attempted to command room join: "${msg}"`);
+                try {
+                    socket.emit("AccountBeep", {
+                        MemberNumber: senderId,
+                        Message: `⛔ [${botPlayer ? botPlayer.Name : CONFIG.accountName} Music] Access denied! Only authorized bot owners can command the bot to switch rooms.`
+                    });
+                } catch (err) {}
+                return;
+            }
+
+            // Master Admin (#245253 / #249540) ordering bot to join a room
+            const joinMatch = cleanMsg.match(/^(?:!|\/)?(?:join\s+here|join\s+sini|masuk\s+sini|join|masuk)(?:\s*[:\-]?\s*(.+))?$/i);
+            let rawRoom = joinMatch && joinMatch[1] ? joinMatch[1].trim() : "";
+
+            let targetRoomToJoin = null;
+            let roomPassword = "";
+
+            if (rawRoom) {
+                let candidate = rawRoom.replace(/^["'(\[<]+|["')\]>]+$/g, '').trim();
+                // Support optional password via pipe or colon (e.g. RoomName|password or RoomName:password)
+                if (candidate.includes("|")) {
+                    const parts = candidate.split("|");
+                    candidate = parts[0].trim();
+                    roomPassword = parts[1].trim();
+                } else if (candidate.includes(":") && !candidate.includes("://")) {
+                    const parts = candidate.split(":");
+                    candidate = parts[0].trim();
+                    roomPassword = parts[1].trim();
+                }
+
+                if (candidate && !candidate.includes("{") && !candidate.includes("}")) {
+                    targetRoomToJoin = candidate;
                 }
             }
 
+            // Priority 2: Fallback to attached ChatRoomName in beep packet (from "join here" or client invite)
+            if (!targetRoomToJoin && data.ChatRoomName) {
+                targetRoomToJoin = data.ChatRoomName;
+            }
+
             if (targetRoomToJoin) {
-                console.log(`🎯 [Master Command] Member #${senderId} ordered bot to join "${targetRoomToJoin}" (Space: "${space || 'Default'}")!`);
+                console.log(`🎯 [Master Command] Member #${senderId} (${senderName}) ordered bot to join "${targetRoomToJoin}" (Space: "${space || 'Default'}")!`);
                 try {
                     socket.emit("AccountBeep", {
                         MemberNumber: senderId,
@@ -379,13 +409,13 @@ async function startBot() {
                 } catch (err) {
                     console.warn("Failed to send reply beep:", err.message);
                 }
-                switchRoom(socket, targetRoomToJoin, space);
+                switchRoom(socket, targetRoomToJoin, space, roomPassword);
             } else {
-                console.warn(`⚠️ Received "join here" from #${senderId}, but room name could not be identified.`);
+                console.warn(`⚠️ Received join command from #${senderId}, but room name could not be identified.`);
                 try {
                     socket.emit("AccountBeep", {
                         MemberNumber: senderId,
-                        Message: `Received "join here", but room name is missing. Please send a room invite beep or specify: "join here <RoomName>"`
+                        Message: `Please specify the room name: "join <RoomName>" or send a room invite beep.`
                     });
                 } catch (err) {}
             }
@@ -394,7 +424,7 @@ async function startBot() {
 
         // Native in-game Room Invite
         if (isMaster && data.BeepType === "ChatRoomInvite" && data.ChatRoomName) {
-            targetRoomToJoin = data.ChatRoomName;
+            const targetRoomToJoin = data.ChatRoomName;
             console.log(`🚪 Native room invite to "${targetRoomToJoin}" received from Member #${senderId}! Navigating bot...`);
             try {
                 socket.emit("AccountBeep", {
@@ -403,6 +433,7 @@ async function startBot() {
                 });
             } catch (err) {}
             switchRoom(socket, targetRoomToJoin, space);
+            return;
         }
     });
 
@@ -629,16 +660,18 @@ function scheduleRetryJoin(socket, delayMs) {
     }, delayMs);
 }
 
-function joinTargetRoom(socket, roomName = CONFIG.targetRoom, space = (CONFIG.targetSpace || "")) {
+function joinTargetRoom(socket, roomName = CONFIG.targetRoom, space = (CONFIG.targetSpace || ""), password = (CONFIG.roomPassword || "")) {
     const packet = { Name: roomName };
     if (space) packet.Space = space;
+    if (password) packet.Password = password;
     socket.emit("ChatRoomJoin", packet);
 }
 
-function switchRoom(socket, roomName, space = "") {
+function switchRoom(socket, roomName, space = "", password = "") {
     if (!roomName) return;
     CONFIG.targetRoom = roomName;
     CONFIG.targetSpace = space || "";
+    if (password) CONFIG.roomPassword = password;
 
     if (isInRoom) {
         if (currentRoomData && currentRoomData.Name && currentRoomData.Name.toLowerCase() === roomName.toLowerCase()) {
@@ -659,11 +692,11 @@ function switchRoom(socket, roomName, space = "") {
 
         setTimeout(() => {
             console.log(`🚪 Joining new room: "${roomName}"...`);
-            joinTargetRoom(socket, roomName, space);
+            joinTargetRoom(socket, roomName, space, password);
         }, 600);
     } else {
         console.log(`🚪 Joining room: "${roomName}"...`);
-        joinTargetRoom(socket, roomName, space);
+        joinTargetRoom(socket, roomName, space, password);
     }
 }
 
