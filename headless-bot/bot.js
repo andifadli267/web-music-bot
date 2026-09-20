@@ -445,32 +445,70 @@ async function startBot() {
             }
         });
 
+        // Prune members who left from knownCharacters
+        const currentMemberNums = new Set(charList.map(c => c.MemberNumber));
+        knownCharacters.forEach(num => {
+            if (!currentMemberNums.has(num)) {
+                knownCharacters.delete(num);
+            }
+        });
+
         notifyWebUpdate();
         startVibeAnimation(socket);
     });
 
-    // Greet new players via whisper when they join the room
+    // Greet players via whisper when they join or re-join the room
     socket.on("ChatRoomSyncMemberJoin", (data) => {
         if (!data || !data.Character) return;
         const newChar = data.Character;
-        if (newChar && newChar.MemberNumber && newChar.Name) {
-            characterNames.set(newChar.MemberNumber, newChar.Name);
+        const memberNum = Number(newChar.MemberNumber);
+        if (newChar && memberNum && newChar.Name) {
+            characterNames.set(memberNum, newChar.Name);
+        }
+        if (currentRoomData && Array.isArray(currentRoomData.Character)) {
+            const exists = currentRoomData.Character.some(c => c.MemberNumber === memberNum);
+            if (!exists) {
+                currentRoomData.Character.push(newChar);
+            }
         }
         notifyWebUpdate();
-        if (botPlayer && newChar.MemberNumber === botPlayer.MemberNumber) return;
-        if (!knownCharacters.has(newChar.MemberNumber)) {
-            knownCharacters.add(newChar.MemberNumber);
+
+        if (botPlayer && memberNum === botPlayer.MemberNumber) return;
+
+        // When a player joins (or rejoins after leaving), send the welcome whisper again
+        if (!knownCharacters.has(memberNum)) {
+            knownCharacters.add(memberNum);
             setTimeout(() => {
+                const stillInRoom = currentRoomData && Array.isArray(currentRoomData.Character)
+                    ? currentRoomData.Character.some(c => c.MemberNumber === memberNum)
+                    : true;
+                if (!stillInRoom) return;
+
                 const myName = botPlayer ? (botPlayer.Name || CONFIG.accountName) : CONFIG.accountName;
                 const roomName = currentRoomData ? currentRoomData.Name : CONFIG.targetRoom;
                 const welcomeMsg = `🎵 [${myName} Music] Ready to play synced music in ${roomName}! Type !help to see commands & radio genres 🎧`;
-                sendWhisper(socket, newChar.MemberNumber, welcomeMsg);
+                sendWhisper(socket, memberNum, welcomeMsg);
             }, 1500);
         }
     });
 
-    // When a player leaves the room
+    // When a player leaves the room, remove them from knownCharacters so they get greeted on re-joining
     socket.on("ChatRoomSyncMemberLeave", (data) => {
+        let leftMemberNumber = null;
+        if (typeof data === "number") {
+            leftMemberNumber = data;
+        } else if (data && typeof data === "object") {
+            leftMemberNumber = data.SourceMemberNumber || data.MemberNumber || data.Target || data.Sender;
+        }
+
+        if (leftMemberNumber) {
+            const num = Number(leftMemberNumber);
+            knownCharacters.delete(num);
+            if (currentRoomData && Array.isArray(currentRoomData.Character)) {
+                currentRoomData.Character = currentRoomData.Character.filter(c => c.MemberNumber !== num);
+            }
+            console.log(`👋 [Room Leave] Member #${num} (${characterNames.get(num) || "Player"}) left the room.`);
+        }
         notifyWebUpdate();
     });
 
@@ -497,7 +535,24 @@ async function startBot() {
         const content = data.Content.trim();
         const sender = data.Sender;
 
-        if (botPlayer && sender === botPlayer.MemberNumber) return;
+        // Handle ServerLeave action events
+        if (data.Type === "Action" && (content === "ServerLeave" || content === "ServerDisconnect" || content === "ServerBan" || content === "ServerKick")) {
+            let leftNum = sender;
+            if (Array.isArray(data.Dictionary)) {
+                const srcObj = data.Dictionary.find(d => d && (d.SourceMemberNumber || d.MemberNumber || d.TargetMemberNumber));
+                if (srcObj) leftNum = srcObj.SourceMemberNumber || srcObj.MemberNumber || srcObj.TargetMemberNumber;
+            }
+            if (leftNum) {
+                const num = Number(leftNum);
+                knownCharacters.delete(num);
+                if (currentRoomData && Array.isArray(currentRoomData.Character)) {
+                    currentRoomData.Character = currentRoomData.Character.filter(c => c.MemberNumber !== num);
+                }
+                console.log(`👋 [ServerLeave Action] Member #${num} left the room.`);
+            }
+            notifyWebUpdate();
+            return;
+        }
 
         if (sender && !knownCharacters.has(sender)) {
             knownCharacters.add(sender);
