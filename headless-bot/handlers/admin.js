@@ -28,12 +28,16 @@ function isRoomAdmin(botPlayer, currentRoomData, senderId) {
 /**
  * Sends a room administration update packet to the Bondage Club server.
  */
-function updateRoom(socket, currentRoomData) {
+function updateRoom(socketOrContext, currentRoomData) {
+    const socket = socketOrContext.socket || socketOrContext;
     socket.emit("ChatRoomAdmin", {
         MemberNumber: 0,
         Room: currentRoomData,
         Action: "Update",
     });
+    if (socketOrContext && typeof socketOrContext.notifyWebRefresh === "function") {
+        socketOrContext.notifyWebRefresh();
+    }
 }
 
 /**
@@ -70,7 +74,7 @@ function addRoomAdmin(context, targetMember, operatorId = 0) {
     const banIdx = currentRoomData.Ban.indexOf(targetId);
     if (banIdx >= 0) currentRoomData.Ban.splice(banIdx, 1);
 
-    updateRoom(socket, currentRoomData);
+    updateRoom(context, currentRoomData);
     console.log(`👑 [Admin Update] Member #${targetId} added to Room Admins by #${operatorId || 'Web'}.`);
     return { success: true, message: `Member #${targetId} (${targetName}) telah ditambahkan ke Administrator ruangan.` };
 }
@@ -99,7 +103,7 @@ function removeRoomAdmin(context, targetMember, operatorId = 0) {
     }
 
     currentRoomData.Admin.splice(idx, 1);
-    updateRoom(socket, currentRoomData);
+    updateRoom(context, currentRoomData);
     const targetName = getCharacterName(targetId);
     console.log(`👑 [Admin Update] Member #${targetId} removed from Room Admins by #${operatorId || 'Web'}.`);
     return { success: true, message: `Member #${targetId} (${targetName}) telah dihapus dari Administrator ruangan.` };
@@ -129,7 +133,7 @@ function addRoomWhitelist(context, targetMember, operatorId = 0) {
     const banIdx = currentRoomData.Ban.indexOf(targetId);
     if (banIdx >= 0) currentRoomData.Ban.splice(banIdx, 1);
 
-    updateRoom(socket, currentRoomData);
+    updateRoom(context, currentRoomData);
     console.log(`📜 [Whitelist Update] Member #${targetId} added to Whitelist by #${operatorId || 'Web'}.`);
     return { success: true, message: `Member #${targetId} (${targetName}) telah ditambahkan ke Whitelist ruangan.` };
 }
@@ -153,7 +157,7 @@ function removeRoomWhitelist(context, targetMember, operatorId = 0) {
     }
 
     currentRoomData.Whitelist.splice(idx, 1);
-    updateRoom(socket, currentRoomData);
+    updateRoom(context, currentRoomData);
     const targetName = getCharacterName(targetId);
     console.log(`📜 [Whitelist Update] Member #${targetId} removed from Whitelist by #${operatorId || 'Web'}.`);
     return { success: true, message: `Member #${targetId} (${targetName}) telah dihapus dari Whitelist ruangan.` };
@@ -197,7 +201,7 @@ function addRoomBan(context, targetMember, operatorId = 0) {
     const wlIdx = currentRoomData.Whitelist.indexOf(targetId);
     if (wlIdx >= 0) currentRoomData.Whitelist.splice(wlIdx, 1);
 
-    updateRoom(socket, currentRoomData);
+    updateRoom(context, currentRoomData);
     console.log(`🚫 [Banlist Update] Member #${targetId} BANNED by #${operatorId || 'Web'}.`);
     return { success: true, message: `Member #${targetId} (${targetName}) telah ditambahkan ke Banlist ruangan.` };
 }
@@ -221,7 +225,7 @@ function removeRoomBan(context, targetMember, operatorId = 0) {
     }
 
     currentRoomData.Ban.splice(idx, 1);
-    updateRoom(socket, currentRoomData);
+    updateRoom(context, currentRoomData);
     const targetName = getCharacterName(targetId);
     console.log(`🚫 [Banlist Update] Member #${targetId} UNBANNED by #${operatorId || 'Web'}.`);
     return { success: true, message: `Member #${targetId} (${targetName}) telah dihapus dari Banlist ruangan.` };
@@ -255,6 +259,9 @@ function kickRoomMember(context, targetMember, operatorId = 0) {
 
     const targetName = getCharacterName(targetId);
     console.log(`👢 [Room Kick] Member #${targetId} (${targetName}) kicked by #${operatorId || 'Web'}.`);
+    if (typeof context.notifyWebRefresh === "function") {
+        context.notifyWebRefresh();
+    }
     return { success: true, message: `Member #${targetId} (${targetName}) berhasil di-kick dari ruangan.` };
 }
 

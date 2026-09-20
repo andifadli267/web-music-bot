@@ -188,6 +188,10 @@ function setRoomMusic(context, musicUrl, title = "", duration = 0, trackInfo = n
             sendRoomEmote(socket, `* 🔇 [${myName} Music] Music stopped.`);
         }
     }
+
+    if (typeof context.notifyWebRefresh === "function") {
+        context.notifyWebRefresh();
+    }
 }
 
 /**
@@ -276,6 +280,7 @@ async function playSong(context, inputQuery, sender = "DJ", customSenderName = n
                 requesterName: senderName,
             });
             sendRoomEmote(socket, `* 📋 [${myName} Music] Added to queue (#${songQueue.length}/${MAX_QUEUE}): "${trackTitle}" (Requested by ${senderName}) 🎶`);
+            if (typeof context.notifyWebRefresh === "function") context.notifyWebRefresh();
             return { success: true, message: `Added to queue (#${songQueue.length}): ${trackTitle}` };
         }
     }
@@ -305,6 +310,7 @@ async function playSong(context, inputQuery, sender = "DJ", customSenderName = n
         socket,
         `* ⏳ [${myName} Music] Converting audio for "${targetSong}"... Please wait a few seconds! 🎧`
     );
+    if (typeof context.notifyWebRefresh === "function") context.notifyWebRefresh();
 
     try {
         const { title, directUrl, duration } = await convertYoutubeToMp3(targetSong);
@@ -332,6 +338,7 @@ async function playSong(context, inputQuery, sender = "DJ", customSenderName = n
                 socket,
                 `* 📋 [${myName} Music] Added to queue (#${songQueue.length}/${MAX_QUEUE}): "${title}" (Requested by ${senderName}) 🎶`
             );
+            if (typeof context.notifyWebRefresh === "function") context.notifyWebRefresh();
             return { success: true, message: `Added to queue (#${songQueue.length}): ${title}` };
         }
     } catch (err) {
@@ -342,6 +349,7 @@ async function playSong(context, inputQuery, sender = "DJ", customSenderName = n
             socket,
             `* ⚠️ [${myName} Music] Failed to convert that YouTube track. Please make sure the link is accessible!`
         );
+        if (typeof context.notifyWebRefresh === "function") context.notifyWebRefresh();
         return { success: false, message: "Failed to convert audio." };
     }
 }
@@ -394,6 +402,9 @@ function clearQueue(context, customSenderName = null) {
         socket,
         `* 🗑️ [${myName} Music] Cleared ${count} song(s) from the queue (Requested by ${senderName}).`
     );
+    if (typeof context.notifyWebRefresh === "function") {
+        context.notifyWebRefresh();
+    }
     return { success: true, message: `Cleared ${count} song(s) from queue.` };
 }
 

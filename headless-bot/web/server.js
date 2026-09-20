@@ -2,6 +2,7 @@
  * Embedded Web Server & REST API for Nava Music Bot
  * Serves real-time dashboard displaying current playback, song queue, requester info,
  * room status, and handles interactive bot controls (music, chat, expressions, room admin).
+ * Features Server-Sent Events (SSE) for instant real-time auto-refresh on any bot input.
  */
 
 const http = require("http");
@@ -23,9 +24,28 @@ const MIME_TYPES = {
 };
 
 let serverInstance = null;
+const sseClients = new Set();
+let statusProvider = null;
+
+/**
+ * Broadcasts status update instantly to all connected browser dashboards via SSE.
+ */
+function notifyWebUpdate() {
+    if (typeof statusProvider !== "function" || sseClients.size === 0) return;
+    try {
+        const data = statusProvider();
+        const json = JSON.stringify(data);
+        for (const client of sseClients) {
+            client.write(`data: ${json}\n\n`);
+        }
+    } catch (err) {
+        console.error("❌ [SSE Broadcast Error]:", err.message);
+    }
+}
 
 function startWebServer(port, getStatus, handleAction) {
     if (serverInstance) return serverInstance;
+    statusProvider = getStatus;
 
     const server = http.createServer(async (req, res) => {
         // Set basic CORS and security headers
@@ -41,7 +61,28 @@ function startWebServer(port, getStatus, handleAction) {
         const parsedUrl = new URL(req.url, `http://${req.headers.host || "localhost"}`);
         const pathname = parsedUrl.pathname;
 
-        // REST API: Live status
+        // Server-Sent Events (SSE): Real-time push updates for 0ms dashboard refresh
+        if (req.method === "GET" && (pathname === "/api/events" || pathname === "/api/stream")) {
+            res.writeHead(200, {
+                "Content-Type": "text/event-stream",
+                "Cache-Control": "no-cache, no-transform",
+                "Connection": "keep-alive",
+                "Access-Control-Allow-Origin": "*",
+            });
+
+            // Send initial state immediately
+            const initialData = typeof getStatus === "function" ? getStatus() : {};
+            res.write(`data: ${JSON.stringify(initialData)}\n\n`);
+
+            sseClients.add(res);
+
+            req.on("close", () => {
+                sseClients.delete(res);
+            });
+            return;
+        }
+
+        // REST API: Live status polling fallback
         if (req.method === "GET" && pathname === "/api/status") {
             res.writeHead(200, {
                 "Content-Type": "application/json; charset=utf-8",
@@ -82,6 +123,9 @@ function startWebServer(port, getStatus, handleAction) {
                     }
 
                     const result = await handleAction(parsed);
+                    // Broadcast update to all SSE clients immediately after action
+                    notifyWebUpdate();
+
                     res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
                     return res.end(JSON.stringify(result || { success: true }));
                 } catch (err) {
@@ -146,6 +190,11 @@ function startWebServer(port, getStatus, handleAction) {
 }
 
 function stopWebServer() {
+    for (const client of sseClients) {
+        try { client.end(); } catch (e) {}
+    }
+    sseClients.clear();
+
     if (serverInstance) {
         serverInstance.close();
         serverInstance = null;
@@ -156,4 +205,5 @@ function stopWebServer() {
 module.exports = {
     startWebServer,
     stopWebServer,
+    notifyWebUpdate,
 };

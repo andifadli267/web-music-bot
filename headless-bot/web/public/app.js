@@ -567,7 +567,31 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // Start Real-Time Polling
+    // 9. Initialize Real-Time Server-Sent Events (SSE) for instant auto-refresh on any bot input
+    function initEventStream() {
+        if (!window.EventSource) return;
+
+        const eventSource = new EventSource("/api/events");
+
+        eventSource.onmessage = (event) => {
+            if (!event.data) return;
+            try {
+                const data = JSON.parse(event.data);
+                updateDashboard(data);
+            } catch (err) {
+                console.warn("[SSE Warning] Failed to parse stream data:", err);
+            }
+        };
+
+        eventSource.onerror = () => {
+            // EventSource automatically handles reconnection
+            console.warn("[SSE Info] Connection interrupted, retrying automatically...");
+        };
+    }
+
+    initEventStream();
+
+    // Initial fetch & fallback polling
     fetchStatus();
-    setInterval(fetchStatus, POLL_INTERVAL);
+    setInterval(fetchStatus, 3000);
 });

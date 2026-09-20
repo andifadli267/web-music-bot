@@ -32,7 +32,7 @@ const {
     removeRoomBan,
     kickRoomMember,
 } = require("./handlers/admin");
-const { startWebServer, stopWebServer } = require("./web/server");
+const { startWebServer, stopWebServer, notifyWebUpdate } = require("./web/server");
 
 const botStartTime = Date.now();
 let currentSocket = null;
@@ -206,6 +206,7 @@ function getContext(socket) {
         sendRoomEmote,
         sendWhisper,
         changeFaceExpression,
+        notifyWebRefresh: notifyWebUpdate,
     };
 }
 
@@ -441,6 +442,7 @@ async function startBot() {
             }
         });
 
+        notifyWebUpdate();
         startVibeAnimation(socket);
     });
 
@@ -451,6 +453,7 @@ async function startBot() {
         if (newChar && newChar.MemberNumber && newChar.Name) {
             characterNames.set(newChar.MemberNumber, newChar.Name);
         }
+        notifyWebUpdate();
         if (botPlayer && newChar.MemberNumber === botPlayer.MemberNumber) return;
         if (!knownCharacters.has(newChar.MemberNumber)) {
             knownCharacters.add(newChar.MemberNumber);
@@ -463,9 +466,15 @@ async function startBot() {
         }
     });
 
+    // When a player leaves the room
+    socket.on("ChatRoomSyncMemberLeave", (data) => {
+        notifyWebUpdate();
+    });
+
     socket.on("ChatRoomUpdateResponse", (res) => {
         if (res === "Updated") {
             console.log("✅ [Server] Room administration update (Music/Settings) ACCEPTED by server!");
+            notifyWebUpdate();
         } else {
             console.warn("⚠️ [Server] Room update response:", res);
         }
@@ -475,6 +484,7 @@ async function startBot() {
         if (data && currentRoomData) {
             Object.assign(currentRoomData, data);
             console.log(`🔄 [Room Sync] Room properties synced to all players! MusicURL: "${data.Custom?.MusicURL || 'None'}"`);
+            notifyWebUpdate();
         }
     });
 
@@ -504,6 +514,7 @@ async function startBot() {
                     sendRoomEmote,
                     changeFaceExpression,
                 });
+                notifyWebUpdate();
                 return;
             }
         }
@@ -514,6 +525,7 @@ async function startBot() {
             if (isForMe) {
                 console.log(`🔒 [Whisper from ${getCharacterName(sender)} (#${sender})]: "${content}"`);
                 handleAdminWhisper(getContext(socket), content, sender);
+                notifyWebUpdate();
                 return;
             }
         }
@@ -527,6 +539,7 @@ async function startBot() {
         if (!cmdText) return;
 
         handleRoomCommand(getContext(socket), cmdText, sender);
+        notifyWebUpdate();
     });
 
     // Auto-rejoin timer if disconnected from room
@@ -540,6 +553,7 @@ async function startBot() {
         isInRoom = false;
         currentRoomData = null;
         stopVibeAnimation();
+        notifyWebUpdate();
         console.warn(`\n⚠️ Disconnected from game server (${reason}). Reconnecting...`);
     });
 
