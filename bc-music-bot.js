@@ -645,8 +645,8 @@
             }
         }
 
-        if (cmd === "!help" || cmd === "!adminhelp") {
-            sendWhisper(senderId, `🔒 [${myName} Admin Menu]:\n• Admin: !admin <id> | !deladmin <id> | !adminlist\n• Whitelist: !whitelist <id> | !delwhitelist <id> | !whitelistlist\n• Banlist: !ban <id> | !unban <id> | !banlist`);
+        if (cmd === "!help" || cmd === "!adminhelp" || cmd === "!adminmenu" || cmd === "!menu") {
+            sendWhisper(senderId, `🔒 [${myName} Admin Menu]:\n• Admin: !admin <id> | !deladmin <id> | !adminlist\n• Whitelist: !whitelist <id> | !delwhitelist <id> | !whitelistlist\n• Banlist: !ban <id> | !unban <id> | !banlist\n• Kick: !kick <id>`);
             return;
         }
 

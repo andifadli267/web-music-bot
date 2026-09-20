@@ -93,6 +93,15 @@ function checkIsAdmin(botPlayer, currentRoomData, senderId) {
     return false;
 }
 
+function getAdminMenuMessage(myName) {
+    return `🔒 [${myName} Admin Menu]:\n` +
+        `• Admin: !admin <id> | !deladmin <id> | !adminlist\n` +
+        `• Whitelist: !whitelist <id> | !delwhitelist <id> | !whitelistlist\n` +
+        `• Banlist: !ban <id> | !unban <id> | !banlist\n` +
+        `• Kick: !kick <id>\n` +
+        `Contoh: /w ${myName} !whitelist 254143`;
+}
+
 function getHelpMessage(myName, isAdmin = false) {
     let msg = `🎵 [${myName} Music Commands]:\n` +
         `• Putar: !play <judul/link>\n` +
@@ -101,11 +110,7 @@ function getHelpMessage(myName, isAdmin = false) {
         `• Pertemanan: !friend\n` +
         `• Web: Dashboard aktif di http://localhost:3000`;
     if (isAdmin) {
-        msg += `\n\n🔒 [Room Admin Menu]:\n` +
-            `• Admin: !admin <id> | !deladmin <id> | !adminlist\n` +
-            `• Whitelist: !whitelist <id> | !delwhitelist <id> | !whitelistlist\n` +
-            `• Banlist: !ban <id> | !unban <id> | !banlist\n` +
-            `• Kick: !kick <id>`;
+        msg += `\n\n${getAdminMenuMessage(myName)}`;
     }
     return msg;
 }
@@ -477,6 +482,19 @@ function handleRoomCommand(context, text, sender) {
         const isAdmin = checkIsAdmin(botPlayer, currentRoomData, sender);
         sendWhisper(socket, sender, getHelpMessage(myName, isAdmin));
         return;
+    } else if (cmd === "!adminmenu" || cmd === "!adminhelp") {
+        changeFaceExpression(socket, "Eyes", "Wink");
+        const isAdmin = checkIsAdmin(botPlayer, currentRoomData, sender);
+        if (isAdmin) {
+            sendWhisper(socket, sender, getAdminMenuMessage(myName));
+        } else {
+            sendWhisper(
+                socket,
+                sender,
+                `⛔ [${myName} Music] Akses ditolak! Hanya Administrator ruangan yang dapat melihat menu admin.`
+            );
+        }
+        return;
     } else if (cmd === "!play" || cmd === "!yt") {
         const rawAfterCmd = text.slice(text.indexOf(parts[0]) + parts[0].length).trim();
         playSong(context, rawAfterCmd, sender, senderName);
@@ -572,5 +590,6 @@ module.exports = {
     clearQueue,
     playRadio,
     getHelpMessage,
+    getAdminMenuMessage,
 };
 

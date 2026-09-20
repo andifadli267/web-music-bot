@@ -10,7 +10,7 @@
  */
 
 const { CONFIG, MASTER_ADMINS } = require("../config");
-const { extractCommand, isBotAdmin, getHelpMessage } = require("./commands");
+const { extractCommand, isBotAdmin, getHelpMessage, getAdminMenuMessage } = require("./commands");
 
 /**
  * Checks if a member has room administrator permissions.
@@ -284,13 +284,27 @@ function handleAdminWhisper(context, rawText, sender) {
     const arg = parts[1] || "";
 
     // 1. HELP COMMAND VIA WHISPER - Available to EVERYONE (Both regular members & admins)
-    if (cmd === "!help" || cmd === "!music" || cmd === "!adminhelp" || cmd === "!menu") {
+    if (cmd === "!help" || cmd === "!music") {
         const isAdmin = isRoomAdmin(botPlayer, currentRoomData, senderId);
         sendWhisper(socket, senderId, getHelpMessage(myName, isAdmin));
         return;
     }
 
-    // 2. Verify that sender is a Room Administrator or Master Admin for management commands
+    // 2. ADMIN MENU COMMAND VIA WHISPER - Available to Room Admins
+    if (cmd === "!adminmenu" || cmd === "!adminhelp" || cmd === "!menu") {
+        if (!isRoomAdmin(botPlayer, currentRoomData, senderId)) {
+            sendWhisper(
+                socket,
+                senderId,
+                `⛔ [${myName} Music] Akses ditolak! Hanya Administrator ruangan yang dapat melihat menu admin. Ketik !help untuk bantuan.`
+            );
+            return;
+        }
+        sendWhisper(socket, senderId, getAdminMenuMessage(myName));
+        return;
+    }
+
+    // 3. Verify that sender is a Room Administrator or Master Admin for management commands
     if (!isRoomAdmin(botPlayer, currentRoomData, senderId)) {
         console.warn(`⛔ [Admin Whisper Denied] Non-admin Member #${senderId} (${senderName}) attempted admin whisper: "${text}"`);
         sendWhisper(
