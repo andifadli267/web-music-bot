@@ -8,7 +8,7 @@
  */
 
 const { io } = require("socket.io-client");
-const { execFile } = require("child_process");
+const { execFile, execSync } = require("child_process");
 const path = require("path");
 const fs = require("fs");
 const ffmpegPath = require("ffmpeg-static");
@@ -81,6 +81,34 @@ function getCharacterName(memberNumber) {
     return `Member #${memberNumber}`;
 }
 
+let pythonExecutable = "python";
+let pythonArgsPrefix = ["-m", "yt_dlp"];
+
+function detectPythonRuntime() {
+    try {
+        const out = execSync("python --version", { encoding: "utf8" }).trim();
+        pythonExecutable = "python";
+        pythonArgsPrefix = ["-m", "yt_dlp"];
+        return out;
+    } catch (_) {}
+
+    try {
+        const out = execSync("py -3 --version", { encoding: "utf8" }).trim();
+        pythonExecutable = "py";
+        pythonArgsPrefix = ["-3", "-m", "yt_dlp"];
+        return `${out} (via py launcher)`;
+    } catch (_) {}
+
+    try {
+        const out = execSync("yt-dlp --version", { encoding: "utf8" }).trim();
+        pythonExecutable = "yt-dlp";
+        pythonArgsPrefix = [];
+        return `yt-dlp CLI v${out}`;
+    } catch (_) {}
+
+    return "Not detected";
+}
+
 let vibeTimer = null;
 let retryJoinTimer = null;
 let isConverting = false;
@@ -117,10 +145,13 @@ function cleanLocalFiles(fileIdPattern = null) {
 
 async function startBot() {
     cleanLocalFiles();
+    const pyVersion = detectPythonRuntime();
     console.log("==========================================================");
     console.log("🤖 Bondage Club - Standalone Music DJ Character Bot");
     console.log("   Broadcasting synchronized room audio for EVERYONE");
     console.log("==========================================================");
+    console.log(`⚡ Node.js Runtime: ${process.version} (${process.execPath})`);
+    console.log(`🐍 Python Runtime : ${pyVersion}`);
     console.log(`🌐 Game Web URL   : ${CONFIG.webUrl}`);
     console.log(`👤 Bot Account    : ${CONFIG.accountName}`);
     console.log(`🚪 Target Room    : "${CONFIG.targetRoom}" (Private Room)`);
@@ -763,7 +794,7 @@ function convertViaYtDlp(queryOrUrl) {
             : `ytsearch1:${queryOrUrl}`;
 
         const args = [
-            "-m", "yt_dlp",
+            ...pythonArgsPrefix,
             "--no-cache-dir",
             "--ffmpeg-location", ffmpegPath,
             "-x", "--audio-format", "mp3",
@@ -776,8 +807,8 @@ function convertViaYtDlp(queryOrUrl) {
             target
         ];
 
-        console.log(`[yt-dlp] Converting "${queryOrUrl}" in folder: ${CONVERT_DIR}...`);
-        execFile("python", args, { timeout: 75000 }, (err, stdout, stderr) => {
+        console.log(`[yt-dlp] Converting "${queryOrUrl}" using ${pythonExecutable} in folder: ${CONVERT_DIR}...`);
+        execFile(pythonExecutable, args, { timeout: 75000 }, (err, stdout, stderr) => {
             let title = queryOrUrl;
             let duration = 0;
 
