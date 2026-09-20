@@ -538,7 +538,7 @@
 
         if (cmd === "!help" || cmd === "!music") {
             triggerDJReaction("wink");
-            const helpMsg = `* 🎵 [${getBotName()}]: !radio <genre> | !play <url> | !yt <id> | !pause | !resume | !stop | !volume <0-100> | !np | Stations: lofi, synth, chillsynth, anime, kpop, jazz, pop, classical (Can be wrapped in parentheses: (!play ...))`;
+            const helpMsg = `* 🎵 [${getBotName()}]: !play <title / YouTube link> (Max: 10 mins) | !radio <genre> | !pause | !resume | !stop | !volume <0-100> | !np | Stations: lofi, synth, chillsynth, anime, kpop, jazz, pop, classical (Can be wrapped in parentheses: (!play ...))`;
             announceChat(helpMsg);
             return;
         }
@@ -651,7 +651,7 @@
         }
 
         if (cmd === "!help" || cmd === "!music") {
-            sendWhisper(senderId, `🎵 [${myName} Music]: !radio <genre> | !play <url> | !yt <id> | !pause | !resume | !stop | !volume <0-100> | !np`);
+            sendWhisper(senderId, `🎵 [${myName} Music]: !play <title / YouTube link> (Max: 10 mins) | !radio <genre> | !pause | !resume | !stop | !volume <0-100> | !np`);
             return;
         }
 

@@ -42,6 +42,9 @@ const STATIONS = {
 // Maximum songs in queue
 const MAX_QUEUE = 10;
 
+// Maximum track duration in seconds (10 minutes)
+const MAX_TRACK_DURATION = 600;
+
 // Authorized Master Admins who can command the bot to switch rooms via beep
 const MASTER_ADMINS = new Set([245253, 249540]);
 
@@ -49,6 +52,7 @@ module.exports = {
     CONFIG,
     STATIONS,
     MAX_QUEUE,
+    MAX_TRACK_DURATION,
     MASTER_ADMINS,
     CONVERT_DIR,
     resolveServerUrl,

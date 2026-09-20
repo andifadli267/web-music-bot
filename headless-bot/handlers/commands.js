@@ -5,7 +5,7 @@
  */
 
 const path = require("path");
-const { CONFIG, STATIONS, MAX_QUEUE, MASTER_ADMINS } = require("../config");
+const { CONFIG, STATIONS, MAX_QUEUE, MAX_TRACK_DURATION, MASTER_ADMINS } = require("../config");
 const { convertYoutubeToMp3 } = require("../services/audio");
 const { acceptFriendRequest } = require("../services/friends");
 
@@ -103,8 +103,9 @@ function getAdminMenuMessage(myName) {
 }
 
 function getHelpMessage(myName) {
+    const maxMins = Math.round(MAX_TRACK_DURATION / 60);
     return `🎵 [${myName} Music Commands]:\n` +
-        `• Play: !play <title/link>\n` +
+        `• Play: !play <title / YouTube link> (Max: ${maxMins} mins)\n` +
         `• Queue: !queue | !skip | !clear | !stop | !np\n` +
         `• Radio: !radio <genre> (lofi, synth, chillsynth, pop, dance, rock, hiphop, jazz)\n` +
         `• Friendship: !friend`;
@@ -275,11 +276,12 @@ async function playSong(context, inputQuery, sender = "DJ", customSenderName = n
     const isDirectAudio = extractedUrl && (extractedUrl.toLowerCase().includes(".mp3") || extractedUrl.toLowerCase().includes(".mp4"));
 
     if (!cleanQuery && !extractedUrl) {
+        const maxMins = Math.round(MAX_TRACK_DURATION / 60);
         sendRoomEmote(
             socket,
-            `* ⚠️ [${myName} Music] Please provide a song title, YouTube link, or .mp3 URL! Example: !play https://youtu.be/... or !play linkin park numb`
+            `* ⚠️ [${myName} Music] Please provide a song title or YouTube link (Max: ${maxMins} mins)! Example: !play https://youtu.be/... or !play linkin park numb`
         );
-        return { success: false, message: "Song title or URL required." };
+        return { success: false, message: "Song title or YouTube link required." };
     }
 
     // Direct MP3/MP4 URL
@@ -342,6 +344,18 @@ async function playSong(context, inputQuery, sender = "DJ", customSenderName = n
     try {
         const { title, directUrl, duration } = await convertYoutubeToMp3(targetSong);
         isConverting = false;
+
+        if (duration && duration > MAX_TRACK_DURATION) {
+            changeFaceExpression(socket, "Eyes", "Sad");
+            const mins = Math.round(duration / 60);
+            const maxMins = Math.round(MAX_TRACK_DURATION / 60);
+            sendRoomEmote(
+                socket,
+                `* ⚠️ [${myName} Music] "${title}" is too long (${mins} mins)! Maximum allowed duration is ${maxMins} minutes.`
+            );
+            if (typeof context.notifyWebRefresh === "function") context.notifyWebRefresh();
+            return { success: false, message: `Track exceeds maximum allowed duration (${maxMins} mins).` };
+        }
 
         if (!currentTrack) {
             setRoomMusic(context, directUrl, `YouTube: ${title}`, duration, {
