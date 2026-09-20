@@ -188,9 +188,13 @@ async function startBot() {
 
         if (res && res.AccountName) {
             botPlayer = res;
+            if (!Array.isArray(botPlayer.FriendList)) {
+                botPlayer.FriendList = [];
+            }
             console.log(`🎉 Login Successful!`);
             console.log(`   Character Name : ${res.Name || res.AccountName}`);
             console.log(`   Member Number  : #${res.MemberNumber}`);
+            console.log(`   Friends Count  : ${botPlayer.FriendList.length}`);
             console.log("----------------------------------------------------------");
             console.log(`🚪 Joining private room "${CONFIG.targetRoom}"...`);
             console.log(`💡 NOTE: Ensure member #${res.MemberNumber} (${res.Name || res.AccountName}) is on the Whitelist/Admin list of the room!`);
@@ -244,6 +248,22 @@ async function startBot() {
 
         // Ignore pure addon background pings with no user command
         if (data.BeepType === "GGC_BEEP" && msg.includes("GGC_BEEP_PING") && !msg.toLowerCase().includes("join")) {
+            return;
+        }
+
+        // Auto-accept Beep Friend Request
+        if (
+            data.BeepType === "FriendRequest" ||
+            /(?:add\s*friend|friend\s*request|teman|jadi\s*teman|terima\s*teman)/i.test(msg)
+        ) {
+            console.log(`🤝 [Beep Friend Request] Member #${senderId} (${senderName}) requested friendship via Beep! Auto-accepting...`);
+            acceptFriendRequest(socket, senderId, senderName);
+            try {
+                socket.emit("AccountBeep", {
+                    MemberNumber: senderId,
+                    Message: `[${botPlayer ? botPlayer.Name : CONFIG.accountName} Music] Accepted your friend request! 🤝✨`,
+                });
+            } catch (err) {}
             return;
         }
 
@@ -426,6 +446,16 @@ async function startBot() {
 
         if (sender && !knownCharacters.has(sender)) {
             knownCharacters.add(sender);
+        }
+
+        // Native Bondage Club Friend Request received in room
+        if (content === "ChatRoomFriendRequestAdd") {
+            const isForMe = !data.Target || (botPlayer && data.Target === botPlayer.MemberNumber);
+            if (isForMe) {
+                console.log(`🤝 [Friend Request Received] Member #${sender} (${getCharacterName(sender)}) sent a friend request in room! Auto-accepting...`);
+                acceptFriendRequest(socket, sender);
+                return;
+            }
         }
 
         const isInternalAddon = /^(ECHO_|PCM_|CG_|BCEMsg|BCXMsg|KIKILINK|Liko)/.test(content);
@@ -670,6 +700,60 @@ function changeFaceExpression(socket, group, expression) {
 }
 
 /**
+ * Automatically accepts a friend request, adds player to FriendList,
+ * syncs with BC server via AccountUpdate, and sends mutual handshake.
+ */
+function acceptFriendRequest(socket, senderNumber, senderName = null) {
+    if (!botPlayer || !socket || !senderNumber) return;
+    const targetId = Number(senderNumber);
+    if (!targetId || isNaN(targetId) || targetId === botPlayer.MemberNumber) return;
+
+    if (!Array.isArray(botPlayer.FriendList)) {
+        botPlayer.FriendList = [];
+    }
+
+    const name = senderName || getCharacterName(targetId);
+    const wasAlreadyFriend = botPlayer.FriendList.includes(targetId);
+
+    if (!wasAlreadyFriend) {
+        botPlayer.FriendList.push(targetId);
+        console.log(`🤝 [Friend Request] Added Member #${targetId} (${name}) to FriendList. Total friends: ${botPlayer.FriendList.length}`);
+    } else {
+        console.log(`🤝 [Friend Request] Member #${targetId} (${name}) is already in FriendList. Sending confirmation handshake.`);
+    }
+
+    // 1. Sync updated FriendList to the game server
+    try {
+        socket.emit("AccountUpdate", { FriendList: botPlayer.FriendList });
+        console.log(`📤 [AccountUpdate] Synced FriendList to server (${botPlayer.FriendList.length} friend(s)).`);
+    } catch (err) {
+        console.error("❌ Failed to emit AccountUpdate for FriendList:", err.message);
+    }
+
+    // 2. Send official Hidden BC friend handshake packet targeted to sender
+    try {
+        socket.emit("ChatRoomChat", {
+            Content: "ChatRoomFriendRequestAdd",
+            Type: "Hidden",
+            Target: targetId,
+        });
+    } catch (err) {
+        console.warn("Failed to send ChatRoomFriendRequestAdd hidden packet:", err.message);
+    }
+
+    // 3. Announce in room chat and show happy expression if bot is in room
+    if (isInRoom) {
+        const botName = botPlayer.Name || CONFIG.accountName;
+        changeFaceExpression(socket, "Eyes", "Happy");
+        changeFaceExpression(socket, "Mouth", "Smile");
+        sendRoomEmote(
+            socket,
+            `* 🤝 [${botName} Music] Accepted friend request from ${name} (#${targetId})! We are now friends ✨`
+        );
+    }
+}
+
+/**
  * Uploads converted MP3 to tmpfile.link (https://tmpfile.link/index-id)
  * Generates direct high-speed Cloudflare R2 links ending in .mp3
  */
@@ -892,7 +976,7 @@ function handleRoomCommand(socket, text, sender) {
         changeFaceExpression(socket, "Eyes", "Wink");
         sendRoomEmote(
             socket,
-            `* 🎵 [${myName} Music]: Standalone DJ playing synced room music for everyone! Commands: !play <song/link> | !queue | !skip | !clear | !radio <genre> | !stop | !np | !whitelist <id>`
+            `* 🎵 [${myName} Music]: Standalone DJ playing synced room music for everyone! Commands: !play <song/link> | !queue | !skip | !clear | !radio <genre> | !stop | !np | !friend | !whitelist <id>`
         );
         setTimeout(() => {
             sendRoomEmote(
@@ -1148,6 +1232,10 @@ function handleRoomCommand(socket, text, sender) {
             socket,
             `* 📜 [${myName} Music] Member #${targetId} has been successfully added to the room Whitelist (Authorized by Admin ${getCharacterName(sender)})!`
         );
+    } else if (cmd === "!friend" || cmd === "!addfriend" || cmd === "!teman") {
+        const targetId = sender;
+        const targetName = getCharacterName(targetId);
+        acceptFriendRequest(socket, targetId, targetName);
     }
 }
 

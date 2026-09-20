@@ -584,6 +584,16 @@
         } else if (cmd === "!np" || cmd === "!nowplaying") {
             triggerDJReaction("happy");
             announceChat(`* 🎵 [${getBotName()}] Sedang memutar: ${currentTitle} [Volume: ${config.volume}%] 🎧`);
+        } else if (cmd === "!friend" || cmd === "!addfriend" || cmd === "!teman") {
+            if (typeof Player !== "undefined" && Player && Array.isArray(Player.FriendList)) {
+                if (!Player.FriendList.includes(senderMemberNumber)) {
+                    if (typeof ChatRoomListUpdate === "function") {
+                        ChatRoomListUpdate(Player.FriendList, true, senderMemberNumber, "FriendRequest");
+                    }
+                }
+                triggerDJReaction("happy");
+                announceChat(`* 🤝 [${getBotName()}] Menerima pertemanan dari ${senderName} (#${senderMemberNumber})! Kita sekarang berteman ✨`);
+            }
         }
     }
 
@@ -632,6 +642,24 @@
                             const char = ChatRoomCharacter.find((c) => c.MemberNumber === sender);
                             if (char && char.Name) senderName = char.Name;
                         }
+
+                        // Auto-accept in-room friend request
+                        if (data.Content === "ChatRoomFriendRequestAdd") {
+                            const myNum = typeof Player !== "undefined" && Player ? Player.MemberNumber : 0;
+                            if (!data.Target || data.Target === myNum) {
+                                if (typeof Player !== "undefined" && Player && Array.isArray(Player.FriendList)) {
+                                    if (!Player.FriendList.includes(sender)) {
+                                        if (typeof ChatRoomListUpdate === "function") {
+                                            ChatRoomListUpdate(Player.FriendList, true, sender, "FriendRequest");
+                                        }
+                                        triggerDJReaction("happy");
+                                        announceChat(`* 🤝 [${getBotName()}] Menerima pertemanan dari ${senderName} (#${sender})! Kita sekarang berteman ✨`);
+                                        console.log(`[BC-MusicBot] Auto-accepted friend request from #${sender}`);
+                                    }
+                                }
+                            }
+                        }
+
                         handleCommand(data.Content, sender, senderName);
                     }
                 } catch (err) {
