@@ -427,10 +427,13 @@ async function startBot() {
         console.log(`==========================================================\n`);
 
         setTimeout(() => {
-            sendRoomEmote(
-                socket,
-                `* 🎵 [${botPlayer.Name || CONFIG.accountName} Music] Ready to play synced music in ${data.Name}! Type !help to see commands & radio genres 🎧`
-            );
+            const myName = botPlayer ? (botPlayer.Name || CONFIG.accountName) : CONFIG.accountName;
+            const welcomeMsg = `🎵 [${myName} Music] Ready to play synced music in ${data.Name}! Type !help to see commands & radio genres 🎧`;
+            charList.forEach(c => {
+                if (c.MemberNumber && botPlayer && c.MemberNumber !== botPlayer.MemberNumber) {
+                    sendWhisper(socket, c.MemberNumber, welcomeMsg);
+                }
+            });
         }, 1500);
 
         charList.forEach(c => {
@@ -446,7 +449,7 @@ async function startBot() {
         startVibeAnimation(socket);
     });
 
-    // Greet new players when they join
+    // Greet new players via whisper when they join the room
     socket.on("ChatRoomSyncMemberJoin", (data) => {
         if (!data || !data.Character) return;
         const newChar = data.Character;
@@ -458,11 +461,11 @@ async function startBot() {
         if (!knownCharacters.has(newChar.MemberNumber)) {
             knownCharacters.add(newChar.MemberNumber);
             setTimeout(() => {
-                sendRoomEmote(
-                    socket,
-                    `* 👋 [${botPlayer.Name || CONFIG.accountName} Music] Welcome to the room, ${newChar.Name || 'friend'}! Feel free to request music using !play <song or youtube url> 🎶`
-                );
-            }, 2000);
+                const myName = botPlayer ? (botPlayer.Name || CONFIG.accountName) : CONFIG.accountName;
+                const roomName = currentRoomData ? currentRoomData.Name : CONFIG.targetRoom;
+                const welcomeMsg = `🎵 [${myName} Music] Ready to play synced music in ${roomName}! Type !help to see commands & radio genres 🎧`;
+                sendWhisper(socket, newChar.MemberNumber, welcomeMsg);
+            }, 1500);
         }
     });
 
