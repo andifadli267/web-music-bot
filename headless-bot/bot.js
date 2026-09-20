@@ -280,7 +280,7 @@ async function startBot() {
         setTimeout(() => {
             sendRoomEmote(
                 socket,
-                `* 🎵 [DJ ${botPlayer.Name || CONFIG.accountName}] Ready to play synced music in ${data.Name}! Type !help to see commands & radio genres 🎧`
+                `* 🎵 [${botPlayer.Name || CONFIG.accountName} Music] Ready to play synced music in ${data.Name}! Type !help to see commands & radio genres 🎧`
             );
         }, 1500);
 
@@ -303,7 +303,7 @@ async function startBot() {
             setTimeout(() => {
                 sendRoomEmote(
                     socket,
-                    `* 👋 [DJ ${botPlayer.Name || CONFIG.accountName}] Welcome to the room, ${newChar.Name || 'friend'}! Feel free to request music using !play <song or youtube url> 🎶`
+                    `* 👋 [${botPlayer.Name || CONFIG.accountName} Music] Welcome to the room, ${newChar.Name || 'friend'}! Feel free to request music using !play <song or youtube url> 🎶`
                 );
             }, 2000);
         }
@@ -324,6 +324,44 @@ async function startBot() {
         }
     });
 
+    function extractCommand(msg) {
+        if (!msg || typeof msg !== "string") return null;
+        let text = msg.trim();
+        if (!text) return null;
+
+        if (text.startsWith("!") || text.startsWith("/music")) {
+            return text;
+        }
+
+        let prev = "";
+        while (text !== prev) {
+            prev = text;
+            if (
+                (text.startsWith("(") && text.endsWith(")")) ||
+                (text.startsWith("[") && text.endsWith("]")) ||
+                (text.startsWith("{") && text.endsWith("}"))
+            ) {
+                text = text.slice(1, -1).trim();
+            }
+        }
+
+        if (text.startsWith("!") || text.startsWith("/music")) {
+            return text;
+        }
+
+        const openOnlyMatch = text.match(/^[\(\[\{\s]+((?:!|\/music)\b.+)$/i);
+        if (openOnlyMatch) {
+            return openOnlyMatch[1].trim();
+        }
+
+        const inlineMatch = text.match(/[\(\[\{]+(\s*(?:!|\/music)\b[^\)\]\}]+)[\)\]\}]*/i);
+        if (inlineMatch) {
+            return inlineMatch[1].trim();
+        }
+
+        return null;
+    }
+
     socket.on("ChatRoomMessage", (data) => {
         if (!data || !data.Content || typeof data.Content !== "string") return;
 
@@ -340,9 +378,11 @@ async function startBot() {
         if (!isInternalAddon) {
             console.log(`💬 [Member #${sender}]: "${content}"`);
         }
-        if (!content.startsWith("!")) return;
 
-        handleRoomCommand(socket, content, sender);
+        const cmdText = extractCommand(content);
+        if (!cmdText) return;
+
+        handleRoomCommand(socket, cmdText, sender);
     });
 
     // Auto-rejoin timer if disconnected from room
@@ -389,7 +429,7 @@ function switchRoom(socket, roomName, space = "") {
             console.log(`📍 Bot is already inside room "${roomName}".`);
             sendRoomEmote(
                 socket,
-                `* 🎵 [DJ ${botPlayer ? botPlayer.Name : CONFIG.accountName}] I am already here in ${roomName}! Ready for music requests 🎧`
+                `* 🎵 [${botPlayer ? botPlayer.Name : CONFIG.accountName} Music] I am already here in ${roomName}! Ready for music requests 🎧`
             );
             return;
         }
@@ -442,7 +482,7 @@ function setRoomMusic(socket, musicUrl, title = "", duration = 0, trackInfo = nu
     if (!isBotAdmin()) {
         sendRoomEmote(
             socket,
-            `* ⚠️ [DJ ${myName}] I need Room Admin privileges to broadcast music to EVERYONE in the room. Please grant Admin to ${myName} (#${myId})!`
+            `* ⚠️ [${myName} Music] I need Room Admin privileges to broadcast music to EVERYONE in the room. Please grant Admin to ${myName} (#${myId})!`
         );
         return;
     }
@@ -450,7 +490,7 @@ function setRoomMusic(socket, musicUrl, title = "", duration = 0, trackInfo = nu
     if (musicUrl && !musicUrl.toLowerCase().includes(".mp3") && !musicUrl.toLowerCase().includes(".mp4")) {
         sendRoomEmote(
             socket,
-            `* ⚠️ [DJ ${myName}] The game server only allows audio links ending with .mp3 or .mp4 format!`
+            `* ⚠️ [${myName} Music] The game server only allows audio links ending with .mp3 or .mp4 format!`
         );
         return;
     }
@@ -507,7 +547,7 @@ function setRoomMusic(socket, musicUrl, title = "", duration = 0, trackInfo = nu
 
         sendRoomEmote(
             socket,
-            `* 🎧 [DJ ${myName}] Now playing for EVERYONE in the room: ${title || musicUrl} 🎶 (Auto-synced to all players' speakers)`
+            `* 🎧 [${myName} Music] Now playing for EVERYONE in the room: ${title || musicUrl} 🎶 (Auto-synced to all players' speakers)`
         );
 
         if (duration && duration > 0) {
@@ -522,7 +562,7 @@ function setRoomMusic(socket, musicUrl, title = "", duration = 0, trackInfo = nu
         if (title !== "SILENT_STOP") {
             sendRoomEmote(
                 socket,
-                `* 🔇 [DJ ${myName}] Room music has been stopped for all players.`
+                `* 🔇 [${myName} Music] Room music has been stopped for all players.`
             );
         }
     }
@@ -545,7 +585,7 @@ function playNextInQueue(socket) {
         setRoomMusic(socket, nextSong.directUrl, `YouTube: ${nextSong.title}`, nextSong.duration, nextSong);
         sendRoomEmote(
             socket,
-            `* 🎶 [DJ ${myName}] Up next from queue: "${nextSong.title}" (Requested by Member #${nextSong.requestedBy})!`
+            `* 🎶 [${myName} Music] Up next from queue: "${nextSong.title}" (Requested by Member #${nextSong.requestedBy})!`
         );
     } else {
         currentTrack = null;
@@ -554,7 +594,7 @@ function playNextInQueue(socket) {
         setRoomMusic(socket, "", "SILENT_STOP");
         sendRoomEmote(
             socket,
-            `* 🎵 [DJ ${myName}] Song finished and queue is empty. Room music stopped. Feel free to request songs with !play <title or link> 🎧`
+            `* 🎵 [${myName} Music] Song finished and queue is empty. Room music stopped. Feel free to request songs with !play <title or link> 🎧`
         );
     }
 }
@@ -797,7 +837,7 @@ function handleRoomCommand(socket, text, sender) {
         changeFaceExpression(socket, "Eyes", "Wink");
         sendRoomEmote(
             socket,
-            `* 🎵 [DJ ${myName}]: Standalone DJ playing synced room music for everyone! Commands: !play <song/link> | !queue | !skip | !clear | !radio <genre> | !stop | !np | !whitelist <id> | !dance | !sing`
+            `* 🎵 [${myName} Music]: Standalone DJ playing synced room music for everyone! Commands: !play <song/link> | !queue | !skip | !clear | !radio <genre> | !stop | !np | !whitelist <id>`
         );
         setTimeout(() => {
             sendRoomEmote(
@@ -818,7 +858,7 @@ function handleRoomCommand(socket, text, sender) {
         if (!cleanQuery && !extractedUrl) {
             sendRoomEmote(
                 socket,
-                `* ⚠️ [DJ ${myName}] Please provide a song title, YouTube link, or .mp3 URL! Example: !play https://youtu.be/... or !play linkin park numb`
+                `* ⚠️ [${myName} Music] Please provide a song title, YouTube link, or .mp3 URL! Example: !play https://youtu.be/... or !play linkin park numb`
             );
             return;
         }
@@ -829,7 +869,7 @@ function handleRoomCommand(socket, text, sender) {
                 setRoomMusic(socket, extractedUrl, `Custom Audio (${path.basename(new URL(extractedUrl).pathname)})`);
             } else {
                 if (songQueue.length >= MAX_QUEUE) {
-                    sendRoomEmote(socket, `* ⚠️ [DJ ${myName}] The song queue is full! Maximum ${MAX_QUEUE} songs allowed.`);
+                    sendRoomEmote(socket, `* ⚠️ [${myName} Music] The song queue is full! Maximum ${MAX_QUEUE} songs allowed.`);
                     return;
                 }
                 const trackTitle = `Custom Audio (${path.basename(new URL(extractedUrl).pathname)})`;
@@ -839,7 +879,7 @@ function handleRoomCommand(socket, text, sender) {
                     duration: 0,
                     requestedBy: sender,
                 });
-                sendRoomEmote(socket, `* 📋 [DJ ${myName}] Added to queue (#${songQueue.length}/${MAX_QUEUE}): "${trackTitle}" (Requested by Member #${sender}) 🎶`);
+                sendRoomEmote(socket, `* 📋 [${myName} Music] Added to queue (#${songQueue.length}/${MAX_QUEUE}): "${trackTitle}" (Requested by Member #${sender}) 🎶`);
             }
             return;
         }
@@ -850,7 +890,7 @@ function handleRoomCommand(socket, text, sender) {
         if (currentTrack && songQueue.length >= MAX_QUEUE) {
             sendRoomEmote(
                 socket,
-                `* ⚠️ [DJ ${myName}] The song queue is full! Maximum ${MAX_QUEUE} songs allowed.`
+                `* ⚠️ [${myName} Music] The song queue is full! Maximum ${MAX_QUEUE} songs allowed.`
             );
             return;
         }
@@ -858,7 +898,7 @@ function handleRoomCommand(socket, text, sender) {
         if (isConverting) {
             sendRoomEmote(
                 socket,
-                `* ⏳ [DJ ${myName}] Another song is currently converting. Please wait a few seconds!`
+                `* ⏳ [${myName} Music] Another song is currently converting. Please wait a few seconds!`
             );
             return;
         }
@@ -867,7 +907,7 @@ function handleRoomCommand(socket, text, sender) {
         changeFaceExpression(socket, "Eyes", "Thinking");
         sendRoomEmote(
             socket,
-            `* ⏳ [DJ ${myName}] Converting audio for "${targetSong}"... Please wait a few seconds! 🎧`
+            `* ⏳ [${myName} Music] Converting audio for "${targetSong}"... Please wait a few seconds! 🎧`
         );
 
         convertYoutubeToMp3(targetSong)
@@ -893,7 +933,7 @@ function handleRoomCommand(socket, text, sender) {
                     changeFaceExpression(socket, "Eyes", "Happy");
                     sendRoomEmote(
                         socket,
-                        `* 📋 [DJ ${myName}] Added to queue (#${songQueue.length}/${MAX_QUEUE}): "${title}" (Requested by Member #${sender}) 🎶`
+                        `* 📋 [${myName} Music] Added to queue (#${songQueue.length}/${MAX_QUEUE}): "${title}" (Requested by Member #${sender}) 🎶`
                     );
                 }
             })
@@ -903,19 +943,19 @@ function handleRoomCommand(socket, text, sender) {
                 console.error("[YouTube Conversion Error]", err);
                 sendRoomEmote(
                     socket,
-                    `* ⚠️ [DJ ${myName}] Failed to convert that YouTube track. Please make sure the link is accessible!`
+                    `* ⚠️ [${myName} Music] Failed to convert that YouTube track. Please make sure the link is accessible!`
                 );
             });
     } else if (cmd === "!queue" || cmd === "!q") {
         if (!currentTrack && songQueue.length === 0) {
             sendRoomEmote(
                 socket,
-                `* 📋 [DJ ${myName}] The song queue is currently empty! Use !play <song/link> to request a track.`
+                `* 📋 [${myName} Music] The song queue is currently empty! Use !play <song/link> to request a track.`
             );
             return;
         }
 
-        let lines = [`* 📋 [DJ ${myName}] Queue Status (${songQueue.length}/${MAX_QUEUE}):`];
+        let lines = [`* 📋 [${myName} Music] Queue Status (${songQueue.length}/${MAX_QUEUE}):`];
         if (currentTrack) {
             lines.push(`▶️ [Now Playing]: "${currentTrack.title}" (Requested by Member #${currentTrack.requestedBy || 'DJ'})`);
         }
@@ -932,13 +972,13 @@ function handleRoomCommand(socket, text, sender) {
         if (!currentTrack && songQueue.length === 0) {
             sendRoomEmote(
                 socket,
-                `* ⚠️ [DJ ${myName}] No song is currently playing to skip!`
+                `* ⚠️ [${myName} Music] No song is currently playing to skip!`
             );
             return;
         }
         sendRoomEmote(
             socket,
-            `* ⏭️ [DJ ${myName}] Track skipped by Member #${sender}!`
+            `* ⏭️ [${myName} Music] Track skipped by Member #${sender}!`
         );
         playNextInQueue(socket);
     } else if (cmd === "!clear") {
@@ -946,10 +986,10 @@ function handleRoomCommand(socket, text, sender) {
         songQueue.length = 0;
         sendRoomEmote(
             socket,
-            `* 🗑️ [DJ ${myName}] Cleared ${count} song(s) from the queue (Requested by Member #${sender}).`
+            `* 🗑️ [${myName} Music] Cleared ${count} song(s) from the queue (Requested by Member #${sender}).`
         );
     } else if (cmd === "!radio") {
-        const key = (parts[1] || "").toLowerCase();
+        const key = (parts[1] || "").toLowerCase().replace(/^[\(<\[\{"']+|[\)>\]\}"']+$/g, "").trim();
         if (STATIONS[key]) {
             currentStation = STATIONS[key];
             songQueue.length = 0;
@@ -961,7 +1001,7 @@ function handleRoomCommand(socket, text, sender) {
         } else {
             sendRoomEmote(
                 socket,
-                `* ⚠️ [DJ ${myName}] Available genres: lofi, synth, chillsynth, pop, dance, rock, hiphop, jazz. Example: !radio synth`
+                `* ⚠️ [${myName} Music] Available genres: lofi, synth, chillsynth, pop, dance, rock, hiphop, jazz. Example: !radio synth`
             );
         }
     } else if (cmd === "!stop") {
@@ -976,43 +1016,29 @@ function handleRoomCommand(socket, text, sender) {
         if (currentTrack) {
             sendRoomEmote(
                 socket,
-                `* 🎵 [DJ ${myName}] Now playing: "${currentTrack.title}" (Requested by Member #${currentTrack.requestedBy || 'DJ'}) 🎧`
+                `* 🎵 [${myName} Music] Now playing: "${currentTrack.title}" (Requested by Member #${currentTrack.requestedBy || 'DJ'}) 🎧`
             );
         } else if (currentStation) {
             sendRoomEmote(
                 socket,
-                `* 🎵 [DJ ${myName}] Now playing 24/7 radio: ${currentStation.name} 🎧`
+                `* 🎵 [${myName} Music] Now playing 24/7 radio: ${currentStation.name} 🎧`
             );
         } else {
             sendRoomEmote(
                 socket,
-                `* 🔇 [DJ ${myName}] No music is currently playing in the room. Type !play <song> or !radio <genre> to start!`
+                `* 🔇 [${myName} Music] No music is currently playing in the room. Type !play <song> or !radio <genre> to start!`
             );
         }
-    } else if (cmd === "!dance") {
-        changeFaceExpression(socket, "Eyes", "Wink");
-        changeFaceExpression(socket, "Mouth", "Smile");
-        sendRoomEmote(
-            socket,
-            `* 💃 ${myName} grooves and dances energetically to the rhythm in the DJ booth! 🎶✨`
-        );
-    } else if (cmd === "!sing") {
-        changeFaceExpression(socket, "Eyes", "Happy");
-        changeFaceExpression(socket, "Mouth", "Sing");
-        sendRoomEmote(
-            socket,
-            `* 🎤 ${myName} sings into the DJ microphone: "Feel the beat, let the music flow through the room~!" 🎵`
-        );
     } else if (cmd === "!admin") {
         sendRoomEmote(
             socket,
-            `* ⚠️ [DJ ${myName}] Granting Room Admin via bot is disabled. Room Admins can add members to the room Whitelist using !whitelist <member_number>.`
+            `* ⚠️ [${myName} Music] Granting Room Admin via bot is disabled. Room Admins can add members to the room Whitelist using !whitelist <member_number>.`
         );
     } else if (cmd === "!whitelist" || cmd === "!wl") {
         if (!isBotAdmin()) {
             sendRoomEmote(
                 socket,
-                `* ⚠️ [DJ ${myName}] I need Room Admin privileges myself to modify the room Whitelist.`
+                `* ⚠️ [${myName} Music] I need Room Admin privileges myself to modify the room Whitelist.`
             );
             return;
         }
@@ -1022,7 +1048,7 @@ function handleRoomCommand(socket, text, sender) {
         if (!senderIsAdmin) {
             sendRoomEmote(
                 socket,
-                `* ⛔ [DJ ${myName}] Permission denied! Only Room Admins can add members to the room Whitelist.`
+                `* ⛔ [${myName} Music] Permission denied! Only Room Admins can add members to the room Whitelist.`
             );
             return;
         }
@@ -1032,7 +1058,7 @@ function handleRoomCommand(socket, text, sender) {
         if (!targetId || isNaN(targetId) || targetId <= 0) {
             sendRoomEmote(
                 socket,
-                `* ⚠️ [DJ ${myName}] Please specify a valid member number! Example: !whitelist 254143`
+                `* ⚠️ [${myName} Music] Please specify a valid member number! Example: !whitelist 254143`
             );
             return;
         }
@@ -1044,7 +1070,7 @@ function handleRoomCommand(socket, text, sender) {
         if (currentRoomData.Whitelist.includes(targetId)) {
             sendRoomEmote(
                 socket,
-                `* ℹ️ [DJ ${myName}] Member #${targetId} is already on the room Whitelist!`
+                `* ℹ️ [${myName} Music] Member #${targetId} is already on the room Whitelist!`
             );
             return;
         }
@@ -1058,7 +1084,7 @@ function handleRoomCommand(socket, text, sender) {
 
         sendRoomEmote(
             socket,
-            `* 📜 [DJ ${myName}] Member #${targetId} has been successfully added to the room Whitelist (Authorized by Admin #${sender})!`
+            `* 📜 [${myName} Music] Member #${targetId} has been successfully added to the room Whitelist (Authorized by Admin #${sender})!`
         );
     }
 }

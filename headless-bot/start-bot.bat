@@ -1,8 +1,8 @@
 @echo off
-title BC Headless Music DJ Bot
+title BC Headless Nava Music Bot
 cd /d "%~dp0"
 echo ==========================================
-echo Starting BC Headless Character DJ Bot...
+echo Starting BC Headless Nava Music Bot...
 echo ==========================================
 node bot.js
 pause

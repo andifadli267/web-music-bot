@@ -13,7 +13,7 @@ Bot karakter mandiri (avatar akun tersendiri) untuk **Bondage Club (R132+)** ([h
 - **Bukan Addon Pemain**: Karakter utama Anda di BC-Desktop bebas bermain normal tanpa script/addon DJ di karakter Anda. Bot berjalan di background sebagai karakter avatar terpisah.
 - **Bergabung ke Ruangan Private**: Dikonfigurasi otomatis untuk terhubung ke ruangan private **`V Main Hall`**.
 - **Lagu Didengar Semua Orang**: Musik room otomatis tersinkronisasi untuk seluruh pengunjung room via server resmi game.
-- **Animasi Wajah & Gerak Otomatis**: Karakter bot berkedip, tersenyum, berjoget (`!dance`), dan bernyanyi (`!sing`) mengikuti alunan musik.
+- **Animasi Wajah & Gerak Otomatis**: Karakter bot berkedip dan tersenyum mengikuti alunan musik.
 - **Sapa Pengunjung Otomatis (Auto-Welcome)**: Bot otomatis menyambut setiap pemain yang bergabung ke room.
 - **Auto-Join via Beep**: Kirim Beep ke nomor bot (**`#258115`**) dengan perintah `"join here"` (atau invite room) oleh Member **`#245253`** atau **`#249540`**, dan bot akan otomatis mengonfirmasi dan berpindah ke ruangan tersebut.
 
@@ -47,8 +47,6 @@ Bot karakter mandiri (avatar akun tersendiri) untuk **Bondage Club (R132+)** ([h
 | `!stop` | `!stop` | Stops room music and clears queue |
 | `!np` | `!np` | Announces current song or radio station |
 | `!whitelist <id>` | `!whitelist 254143` | **Room Admin only**: Adds a player to the private room Whitelist |
-| `!dance` | `!dance` | Character dances in the DJ booth |
-| `!sing` | `!sing` | Character sings along into the DJ mic |
 
 ---
 

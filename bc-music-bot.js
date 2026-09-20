@@ -100,10 +100,15 @@
         posLeft: 20,
         // Character Bot Persona Settings
         characterBotEnabled: true,  // Runs as in-game character DJ
-        botName: "DJ",
+        botName: "Nava Music",
         autoVibeAnimation: true,    // Character dances / changes expressions to beat
         autoWelcomeUsers: true,     // Welcomes new players entering room
     };
+
+    function getBotName() {
+        const charName = typeof Player !== "undefined" && Player && Player.Name ? Player.Name : "Nava";
+        return `${charName} Music`;
+    }
 
     let config = Object.assign({}, DEFAULT_CONFIG);
     try {
@@ -318,17 +323,25 @@
         triggerDJReaction("play");
 
         const requester = senderName ? ` atas permintaan ${senderName}` : "";
-        const notifyText = `* 🎵 [DJ] Memutar stasiun ${station.icon} ${station.name} (${station.genre})${requester}! 🎧`;
+        const notifyText = `* 🎵 [${getBotName()}] Memutar stasiun ${station.icon} ${station.name} (${station.genre})${requester}! 🎧`;
         announceChat(notifyText);
         updateUI();
     }
 
     function playCustomUrl(url, senderName = null) {
         initAudio();
+        if (!url || typeof url !== "string") return;
+        url = url.replace(/^[\(<\[\{"']+|[\)>\]\}"']+$/g, "").trim();
 
-        const ytMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/i);
+        const ytMatch = url.match(/(?:youtu\.be\/|(?:m\.|music\.|www\.)?youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/|live\/))([\w-]{11})/i);
         if (ytMatch) {
             playYouTube(ytMatch[1], senderName);
+            return;
+        }
+
+        // Direct YouTube video ID (11 chars)
+        if (/^[\w-]{11}$/.test(url)) {
+            playYouTube(url, senderName);
             return;
         }
 
@@ -347,7 +360,7 @@
 
         triggerDJReaction("play");
         const requester = senderName ? ` [req: ${senderName}]` : "";
-        announceChat(`* 🎵 [DJ] Memutar audio stream dari ${url}${requester} 🎧`);
+        announceChat(`* 🎵 [${getBotName()}] Memutar audio stream dari ${url}${requester} 🎧`);
         updateUI();
     }
 
@@ -371,7 +384,7 @@
 
         triggerDJReaction("play");
         const requester = senderName ? ` [req: ${senderName}]` : "";
-        announceChat(`* 🎵 [DJ] Memutar musik YouTube: https://youtu.be/${videoId}${requester} 🎧`);
+        announceChat(`* 🎵 [${getBotName()}] Memutar musik YouTube: https://youtu.be/${videoId}${requester} 🎧`);
         updateUI();
     }
 
@@ -383,7 +396,7 @@
         }
         isPlaying = false;
         stopCharacterVibing();
-        announceChat(`* ⏸️ [DJ] Musik dijeda (Paused).`);
+        announceChat(`* ⏸️ [${getBotName()}] Musik dijeda (Paused).`);
         updateUI();
     }
 
@@ -396,7 +409,7 @@
         isPlaying = true;
         startCharacterVibing();
         triggerDJReaction("play");
-        announceChat(`* ▶️ [DJ] Musik dilanjutkan (Resumed).`);
+        announceChat(`* ▶️ [${getBotName()}] Musik dilanjutkan (Resumed).`);
         updateUI();
     }
 
@@ -411,7 +424,7 @@
         isPlaying = false;
         stopCharacterVibing();
         currentTitle = "Tidak ada musik diputar";
-        announceChat(`* ⏹️ [DJ] Musik dihentikan.`);
+        announceChat(`* ⏹️ [${getBotName()}] Musik dihentikan.`);
         updateUI();
     }
 
@@ -472,55 +485,89 @@
         return true; // "everyone"
     }
 
+    function extractCommand(msg) {
+        if (!msg || typeof msg !== "string") return null;
+        let text = msg.trim();
+        if (!text) return null;
+
+        // If starts with command prefix directly
+        if (text.startsWith("!") || text.startsWith("/music")) {
+            return text;
+        }
+
+        // Repeatedly unwrap outer matching brackets: ( ... ), [ ... ], { ... }
+        // Handles nested parentheses like: ((!play url)) or (((!radio pop)))
+        let prev = "";
+        while (text !== prev) {
+            prev = text;
+            if (
+                (text.startsWith("(") && text.endsWith(")")) ||
+                (text.startsWith("[") && text.endsWith("]")) ||
+                (text.startsWith("{") && text.endsWith("}"))
+            ) {
+                text = text.slice(1, -1).trim();
+            }
+        }
+
+        if (text.startsWith("!") || text.startsWith("/music")) {
+            return text;
+        }
+
+        // Handles unclosed opening brackets e.g. "(!play url" or "((!play url"
+        const openOnlyMatch = text.match(/^[\(\[\{\s]+((?:!|\/music)\b.+)$/i);
+        if (openOnlyMatch) {
+            return openOnlyMatch[1].trim();
+        }
+
+        // Handles bracketed command anywhere within message: e.g. "DJ play this (!play url) please"
+        const inlineMatch = text.match(/[\(\[\{]+(\s*(?:!|\/music)\b[^\)\]\}]+)[\)\]\}]*/i);
+        if (inlineMatch) {
+            return inlineMatch[1].trim();
+        }
+
+        return null;
+    }
+
     function handleCommand(msg, senderMemberNumber, senderName) {
         if (!msg || typeof msg !== "string") return;
-        const text = msg.trim();
-        if (!text.startsWith("!") && !text.startsWith("/music")) return;
+        const text = extractCommand(msg);
+        if (!text) return;
 
         const parts = text.split(/\s+/);
         const cmd = parts[0].toLowerCase();
 
         if (cmd === "!help" || cmd === "!music") {
             triggerDJReaction("wink");
-            const myName = typeof Player !== "undefined" && Player && Player.Name ? Player.Name : "DJ";
-            const helpMsg = `* 🎵 [${myName} Music DJ]: !radio <genre> | !play <url> | !yt <id> | !dance | !sing | !pause | !resume | !stop | !volume <0-100> | !np | Stasiun: lofi, synth, chillsynth, anime, kpop, jazz, pop, classical`;
+            const helpMsg = `* 🎵 [${getBotName()}]: !radio <genre> | !play <url> | !yt <id> | !pause | !resume | !stop | !volume <0-100> | !np | Stasiun: lofi, synth, chillsynth, anime, kpop, jazz, pop, classical (Bisa diketik dalam kurung: (!play ...))`;
             announceChat(helpMsg);
             return;
         }
 
-        // Fun Character Interactions
-        if (cmd === "!dance") {
-            triggerDJReaction("dance");
-            const myName = typeof Player !== "undefined" && Player && Player.Name ? Player.Name : "DJ";
-            announceChat(`* 💃 ${myName} mulai berdisko dan menari mengikuti irama musik! 🎶✨`);
-            return;
-        }
-
-        if (cmd === "!sing") {
-            triggerDJReaction("sing");
-            const myName = typeof Player !== "undefined" && Player && Player.Name ? Player.Name : "DJ";
-            announceChat(`* 🎤 ${myName} ikut bernyanyi: "La la la~ 🎶 feel the rhythm in the air!" 🎵`);
-            return;
-        }
-
         if (!hasPermission(senderMemberNumber)) {
-            announceChat(`* ⚠️ [DJ] Maaf ${senderName}, hanya Host/Admin yang diizinkan mengontrol musik.`);
+            announceChat(`* ⚠️ [${getBotName()}] Maaf ${senderName}, hanya Host/Admin yang diizinkan mengontrol musik.`);
             return;
         }
 
         if (cmd === "!radio") {
-            const stationKey = parts[1] ? parts[1].toLowerCase() : "lofi";
+            let stationKey = parts[1] ? parts[1].toLowerCase() : "lofi";
+            stationKey = stationKey.replace(/^[\(<\[\{"']+|[\)>\]\}"']+$/g, "").trim();
             playRadio(stationKey, senderName);
         } else if (cmd === "!play") {
-            const target = parts.slice(1).join(" ").trim();
+            let target = parts.slice(1).join(" ").trim();
+            target = target.replace(/^[\(<\[\{"']+|[\)>\]\}"']+$/g, "").trim();
             if (!target) {
                 resumeMusic();
             } else {
                 playCustomUrl(target, senderName);
             }
         } else if (cmd === "!yt" || cmd === "!youtube") {
-            const target = parts[1];
-            if (target) playYouTube(target, senderName);
+            let target = parts[1];
+            if (target) {
+                target = target.replace(/^[\(<\[\{"']+|[\)>\]\}"']+$/g, "").trim();
+                const ytMatch = target.match(/(?:youtu\.be\/|(?:m\.|music\.|www\.)?youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/|live\/))([\w-]{11})/i);
+                const videoId = ytMatch ? ytMatch[1] : target;
+                playYouTube(videoId, senderName);
+            }
         } else if (cmd === "!pause") {
             pauseMusic();
         } else if (cmd === "!resume") {
@@ -528,14 +575,15 @@
         } else if (cmd === "!stop") {
             stopMusic();
         } else if (cmd === "!volume" || cmd === "!vol") {
-            const vol = parts[1];
+            let vol = parts[1];
             if (vol !== undefined) {
+                vol = String(vol).replace(/^[\(<\[\{"']+|[\)>\]\}"']+$/g, "").trim();
                 setVolume(vol);
-                announceChat(`* 🔊 [DJ] Volume musik diatur ke: ${config.volume}%`);
+                announceChat(`* 🔊 [${getBotName()}] Volume musik diatur ke: ${config.volume}%`);
             }
         } else if (cmd === "!np" || cmd === "!nowplaying") {
             triggerDJReaction("happy");
-            announceChat(`* 🎵 [DJ] Sedang memutar: ${currentTitle} [Volume: ${config.volume}%] 🎧`);
+            announceChat(`* 🎵 [${getBotName()}] Sedang memutar: ${currentTitle} [Volume: ${config.volume}%] 🎧`);
         }
     }
 
@@ -557,8 +605,7 @@
                     setTimeout(() => {
                         if (knownRoomMembers.has(char.MemberNumber) && CurrentScreen === "ChatRoom") {
                             triggerDJReaction("wink");
-                            const myName = typeof Player !== "undefined" && Player ? Player.Name : "DJ";
-                            announceChat(`* 🎵 [${myName} DJ] Halo ${char.Name || "teman"}! Selamat datang di room! Ketik !help untuk request lagu atau stasiun radio 🎧`);
+                            announceChat(`* 🎵 [${getBotName()}] Halo ${char.Name || "teman"}! Selamat datang di room! Ketik !help untuk request lagu atau stasiun radio 🎧`);
                         }
                     }, 3000);
                 }
@@ -616,7 +663,7 @@
             chatInput.addEventListener("keydown", (e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                     const val = chatInput.value.trim();
-                    if (val.startsWith("!") || val.startsWith("/music")) {
+                    if (extractCommand(val)) {
                         const myNum = typeof Player !== "undefined" && Player ? Player.MemberNumber : 0;
                         handleCommand(val, myNum, "You");
                     }
