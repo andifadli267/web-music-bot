@@ -16,6 +16,7 @@ const {
     handleRoomCommand,
     resetQueue,
 } = require("./handlers/commands");
+const { handleAdminWhisper } = require("./handlers/admin");
 
 let botPlayer = null;
 let currentRoomData = null;
@@ -48,6 +49,15 @@ function sendRoomEmote(socket, msg) {
     });
 }
 
+function sendWhisper(socket, targetMemberNumber, msg) {
+    if (!socket || !targetMemberNumber) return;
+    socket.emit("ChatRoomChat", {
+        Content: msg,
+        Type: "Whisper",
+        Target: Number(targetMemberNumber),
+    });
+}
+
 function changeFaceExpression(socket, group, expression) {
     socket.emit("ChatRoomCharacterExpressionUpdate", {
         Group: group,
@@ -63,6 +73,7 @@ function getContext(socket) {
         isInRoom,
         getCharacterName,
         sendRoomEmote,
+        sendWhisper,
         changeFaceExpression,
     };
 }
@@ -357,6 +368,16 @@ async function startBot() {
                     sendRoomEmote,
                     changeFaceExpression,
                 });
+                return;
+            }
+        }
+
+        // Private Whisper (/w) to the bot - specifically handles Room Admin commands
+        if (data.Type === "Whisper") {
+            const isForMe = !data.Target || (botPlayer && data.Target === botPlayer.MemberNumber);
+            if (isForMe) {
+                console.log(`🔒 [Whisper from ${getCharacterName(sender)} (#${sender})]: "${content}"`);
+                handleAdminWhisper(getContext(socket), content, sender);
                 return;
             }
         }

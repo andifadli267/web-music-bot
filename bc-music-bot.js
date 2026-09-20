@@ -594,7 +594,141 @@
                 triggerDJReaction("happy");
                 announceChat(`* 🤝 [${getBotName()}] Menerima pertemanan dari ${senderName} (#${senderMemberNumber})! Kita sekarang berteman ✨`);
             }
+        } else if (
+            cmd === "!admin" || cmd === "!addadmin" || cmd === "!deladmin" || cmd === "!adminlist" ||
+            cmd === "!whitelist" || cmd === "!wl" || cmd === "!addwhitelist" || cmd === "!delwhitelist" ||
+            cmd === "!ban" || cmd === "!addban" || cmd === "!unban" || cmd === "!banlist"
+        ) {
+            announceChat(`* 🔒 [${getBotName()}] Pengelolaan Admin, Whitelist, dan Banlist hanya dapat dijalankan oleh Administrator ruangan melalui bisikan privat: /w ${getBotName()} <perintah>`);
         }
+    }
+
+    function sendWhisper(targetId, msg) {
+        if (typeof ChatRoomSendWhisper === "function") {
+            ChatRoomSendWhisper(targetId, msg);
+        } else if (typeof ServerSend === "function") {
+            ServerSend("ChatRoomChat", { Content: msg, Type: "Whisper", Target: targetId });
+        }
+    }
+
+    function handleAdminWhisper(rawText, senderMemberNumber, senderName) {
+        if (typeof ChatRoomData === "undefined" || !ChatRoomData) return;
+        const senderId = Number(senderMemberNumber);
+        const myName = getBotName();
+
+        const text = extractCommand(rawText) || (typeof rawText === "string" ? rawText.trim() : "");
+        if (!text) return;
+
+        const parts = text.split(/\s+/);
+        const rawCmd = parts[0].toLowerCase();
+        const cmd = rawCmd.startsWith("!") ? rawCmd : `!${rawCmd}`;
+        const arg = parts[1] || "";
+
+        const isAdmin = Array.isArray(ChatRoomData.Admin) && ChatRoomData.Admin.includes(senderId);
+        if (!isAdmin) {
+            sendWhisper(senderId, `⛔ [${myName}] Akses ditolak! Hanya Administrator ruangan yang dapat mengatur Admin, Whitelist, dan Banlist.`);
+            return;
+        }
+
+        if (!Array.isArray(ChatRoomData.Admin)) ChatRoomData.Admin = [];
+        if (!Array.isArray(ChatRoomData.Whitelist)) ChatRoomData.Whitelist = [];
+        if (!Array.isArray(ChatRoomData.Ban)) ChatRoomData.Ban = [];
+
+        function parseId(val) {
+            const num = parseInt(String(val).replace(/\D/g, ""), 10);
+            return (!isNaN(num) && num > 0) ? num : null;
+        }
+
+        function updateRoom() {
+            if (typeof ServerSend === "function") {
+                ServerSend("ChatRoomAdmin", { MemberNumber: 0, Room: ChatRoomData, Action: "Update" });
+            }
+        }
+
+        if (cmd === "!help" || cmd === "!adminhelp") {
+            sendWhisper(senderId, `🔒 [${myName} Admin Menu]:\n• Admin: !admin <id> | !deladmin <id> | !adminlist\n• Whitelist: !whitelist <id> | !delwhitelist <id> | !whitelistlist\n• Banlist: !ban <id> | !unban <id> | !banlist`);
+            return;
+        }
+
+        if (cmd === "!adminlist" || (cmd === "!admin" && !arg)) {
+            sendWhisper(senderId, `👑 [Admin List] Total (${ChatRoomData.Admin.length}):\n${ChatRoomData.Admin.join(", ")}`);
+            return;
+        }
+
+        if (cmd === "!admin" || cmd === "!addadmin") {
+            const target = parseId(arg);
+            if (!target) return sendWhisper(senderId, `⚠️ Format salah! Contoh: !admin 254143`);
+            if (ChatRoomData.Admin.includes(target)) return sendWhisper(senderId, `ℹ️ Member #${target} sudah ada di daftar Admin.`);
+            ChatRoomData.Admin.push(target);
+            updateRoom();
+            sendWhisper(senderId, `✅ Member #${target} berhasil ditambahkan ke Admin ruangan.`);
+            return;
+        }
+
+        if (cmd === "!deladmin" || cmd === "!removeadmin") {
+            const target = parseId(arg);
+            if (!target) return sendWhisper(senderId, `⚠️ Format salah! Contoh: !deladmin 254143`);
+            const idx = ChatRoomData.Admin.indexOf(target);
+            if (idx < 0) return sendWhisper(senderId, `ℹ️ Member #${target} tidak ada di daftar Admin.`);
+            ChatRoomData.Admin.splice(idx, 1);
+            updateRoom();
+            sendWhisper(senderId, `✅ Member #${target} telah dihapus dari Admin ruangan.`);
+            return;
+        }
+
+        if (cmd === "!whitelistlist" || ((cmd === "!whitelist" || cmd === "!wl") && !arg)) {
+            sendWhisper(senderId, `📜 [Whitelist] Total (${ChatRoomData.Whitelist.length}):\n${ChatRoomData.Whitelist.join(", ") || "Kosong"}`);
+            return;
+        }
+
+        if (cmd === "!whitelist" || cmd === "!wl" || cmd === "!addwhitelist") {
+            const target = parseId(arg);
+            if (!target) return sendWhisper(senderId, `⚠️ Format salah! Contoh: !whitelist 254143`);
+            if (ChatRoomData.Whitelist.includes(target)) return sendWhisper(senderId, `ℹ️ Member #${target} sudah ada di Whitelist.`);
+            ChatRoomData.Whitelist.push(target);
+            updateRoom();
+            sendWhisper(senderId, `✅ Member #${target} berhasil ditambahkan ke Whitelist ruangan.`);
+            return;
+        }
+
+        if (cmd === "!delwhitelist" || cmd === "!delwl" || cmd === "!removewhitelist") {
+            const target = parseId(arg);
+            if (!target) return sendWhisper(senderId, `⚠️ Format salah! Contoh: !delwhitelist 254143`);
+            const idx = ChatRoomData.Whitelist.indexOf(target);
+            if (idx < 0) return sendWhisper(senderId, `ℹ️ Member #${target} tidak ada di Whitelist.`);
+            ChatRoomData.Whitelist.splice(idx, 1);
+            updateRoom();
+            sendWhisper(senderId, `✅ Member #${target} telah dihapus dari Whitelist.`);
+            return;
+        }
+
+        if (cmd === "!banlist" || (cmd === "!ban" && !arg)) {
+            sendWhisper(senderId, `🚫 [Banlist] Total (${ChatRoomData.Ban.length}):\n${ChatRoomData.Ban.join(", ") || "Tidak ada"}`);
+            return;
+        }
+
+        if (cmd === "!ban" || cmd === "!addban") {
+            const target = parseId(arg);
+            if (!target) return sendWhisper(senderId, `⚠️ Format salah! Contoh: !ban 254143`);
+            if (ChatRoomData.Ban.includes(target)) return sendWhisper(senderId, `ℹ️ Member #${target} sudah ada di Banlist.`);
+            ChatRoomData.Ban.push(target);
+            updateRoom();
+            sendWhisper(senderId, `🚫 Member #${target} berhasil di-ban dari ruangan.`);
+            return;
+        }
+
+        if (cmd === "!unban" || cmd === "!delban") {
+            const target = parseId(arg);
+            if (!target) return sendWhisper(senderId, `⚠️ Format salah! Contoh: !unban 254143`);
+            const idx = ChatRoomData.Ban.indexOf(target);
+            if (idx < 0) return sendWhisper(senderId, `ℹ️ Member #${target} tidak ada di Banlist.`);
+            ChatRoomData.Ban.splice(idx, 1);
+            updateRoom();
+            sendWhisper(senderId, `✅ Member #${target} telah di-unban dari ruangan.`);
+            return;
+        }
+
+        sendWhisper(senderId, `❓ Perintah whisper "${cmd}" tidak dikenal. Ketik !help untuk melihat menu admin.`);
     }
 
     // Check for players entering room to auto-welcome
@@ -657,6 +791,15 @@
                                         console.log(`[BC-MusicBot] Auto-accepted friend request from #${sender}`);
                                     }
                                 }
+                            }
+                        }
+
+                        // Whisper room admin command handler
+                        if (data.Type === "Whisper") {
+                            const myNum = typeof Player !== "undefined" && Player ? Player.MemberNumber : 0;
+                            if (!data.Target || data.Target === myNum) {
+                                handleAdminWhisper(data.Content, sender, senderName);
+                                return originalChatRoomMessage.apply(this, arguments);
                             }
                         }
 

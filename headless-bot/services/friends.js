@@ -86,3 +86,4 @@ function acceptFriendRequest({
 module.exports = {
     acceptFriendRequest,
 };
+

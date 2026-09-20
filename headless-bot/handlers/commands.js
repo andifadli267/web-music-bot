@@ -237,7 +237,7 @@ function handleRoomCommand(context, text, sender) {
         changeFaceExpression(socket, "Eyes", "Wink");
         sendRoomEmote(
             socket,
-            `* 🎵 [${myName} Music]: Standalone DJ playing synced room music for everyone! Commands: !play <song/link> | !queue | !skip | !clear | !radio <genre> | !stop | !np | !friend | !whitelist <id>`
+            `* 🎵 [${myName} Music]: Standalone DJ playing synced room music for everyone! Commands: !play <song/link> | !queue | !skip | !clear | !radio <genre> | !stop | !np | !friend (Admin via whisper: /w ${myName} !help)`
         );
         setTimeout(() => {
             sendRoomEmote(
@@ -436,62 +436,14 @@ function handleRoomCommand(context, text, sender) {
                 `* 🔇 [${myName} Music] No music is currently playing in the room. Type !play <song> or !radio <genre> to start!`
             );
         }
-    } else if (cmd === "!admin") {
+    } else if (
+        cmd === "!admin" || cmd === "!addadmin" || cmd === "!deladmin" || cmd === "!adminlist" ||
+        cmd === "!whitelist" || cmd === "!wl" || cmd === "!addwhitelist" || cmd === "!delwhitelist" ||
+        cmd === "!ban" || cmd === "!addban" || cmd === "!unban" || cmd === "!banlist"
+    ) {
         sendRoomEmote(
             socket,
-            `* ⚠️ [${myName} Music] Granting Room Admin via bot is disabled. Room Admins can add members to the room Whitelist using !whitelist <member_number>.`
-        );
-    } else if (cmd === "!whitelist" || cmd === "!wl") {
-        if (!isBotAdmin(botPlayer, currentRoomData)) {
-            sendRoomEmote(
-                socket,
-                `* ⚠️ [${myName} Music] I need Room Admin privileges myself to modify the room Whitelist.`
-            );
-            return;
-        }
-
-        // Only existing room admins can command the bot to whitelist members
-        const senderIsAdmin = currentRoomData && Array.isArray(currentRoomData.Admin) && currentRoomData.Admin.includes(sender);
-        if (!senderIsAdmin) {
-            sendRoomEmote(
-                socket,
-                `* ⛔ [${myName} Music] Permission denied! Only Room Admins can add members to the room Whitelist.`
-            );
-            return;
-        }
-
-        const rawTarget = parts[1] || "";
-        const targetId = parseInt(rawTarget.replace(/[#\(\)\,\.]/g, ""), 10);
-        if (!targetId || isNaN(targetId) || targetId <= 0) {
-            sendRoomEmote(
-                socket,
-                `* ⚠️ [${myName} Music] Please specify a valid member number! Example: !whitelist 254143`
-            );
-            return;
-        }
-
-        if (!Array.isArray(currentRoomData.Whitelist)) {
-            currentRoomData.Whitelist = [];
-        }
-
-        if (currentRoomData.Whitelist.includes(targetId)) {
-            sendRoomEmote(
-                socket,
-                `* ℹ️ [${myName} Music] Member #${targetId} is already on the room Whitelist!`
-            );
-            return;
-        }
-
-        currentRoomData.Whitelist.push(targetId);
-        socket.emit("ChatRoomAdmin", {
-            MemberNumber: 0,
-            Room: currentRoomData,
-            Action: "Update",
-        });
-
-        sendRoomEmote(
-            socket,
-            `* 📜 [${myName} Music] Member #${targetId} has been successfully added to the room Whitelist (Authorized by Admin ${getCharacterName(sender)})!`
+            `* 🔒 [${myName} Music] Pengelolaan Admin, Whitelist, dan Banlist hanya dapat dijalankan oleh Administrator ruangan melalui bisikan privat: /w ${myName} <perintah>`
         );
     } else if (cmd === "!friend" || cmd === "!addfriend" || cmd === "!teman") {
         const targetId = sender;
@@ -518,3 +470,4 @@ module.exports = {
     resetQueue,
     isBotAdmin,
 };
+
