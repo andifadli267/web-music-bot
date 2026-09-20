@@ -107,8 +107,7 @@ function getHelpMessage(myName) {
         `• Putar: !play <judul/link>\n` +
         `• Antrean: !queue | !skip | !clear | !stop | !np\n` +
         `• Radio: !radio <genre> (lofi, synth, chillsynth, pop, dance, rock, hiphop, jazz)\n` +
-        `• Pertemanan: !friend\n` +
-        `• Web: Dashboard aktif di http://localhost:3000`;
+        `• Pertemanan: !friend`;
 }
 
 /**
