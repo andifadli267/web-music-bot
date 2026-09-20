@@ -57,6 +57,9 @@ let currentTrack = null; // { title, directUrl, duration, requestedBy, startedAt
 let trackEndTimer = null;
 let currentStation = null;
 
+// Authorized Master Admins who can command the bot to switch rooms via beep
+const MASTER_ADMINS = new Set([245253, 249540]);
+
 let botPlayer = null;
 let currentRoomData = null;
 let isInRoom = false;
@@ -174,7 +177,7 @@ async function startBot() {
 
         const senderId = Number(data.MemberNumber);
         const senderName = data.MemberName || "Unknown";
-        const isMaster = (senderId === 245253);
+        const isMaster = MASTER_ADMINS.has(senderId);
 
         // Convert message to string whether it's a plain string or an object from an addon (GGC/BCX)
         let msg = "";
@@ -218,7 +221,7 @@ async function startBot() {
             }
 
             if (targetRoomToJoin) {
-                console.log(`🎯 [Master Command] Member #245253 ordered bot to join "${targetRoomToJoin}" (Space: "${space || 'Default'}")!`);
+                console.log(`🎯 [Master Command] Member #${senderId} ordered bot to join "${targetRoomToJoin}" (Space: "${space || 'Default'}")!`);
                 try {
                     socket.emit("AccountBeep", {
                         MemberNumber: senderId,
