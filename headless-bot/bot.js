@@ -2,258 +2,65 @@
  * Bondage Club (R132+) - Standalone Headless DJ Character Bot
  * 
  * An autonomous character bot that logs in with its own account,
- * joins the designated private room ("V Main Hall"),
+ * joins the designated private room,
  * and broadcasts room music using native BC Room Customization (Custom.MusicURL).
  * Music is synchronized and audible to EVERYONE in the room without requiring addons!
  */
 
 const { io } = require("socket.io-client");
-const {
-    CONFIG,
-    MASTER_ADMINS,
-    DEFAULT_SEED_ADMINS,
-    CONVERT_DIR,
-    STATIONS,
-    addAuthorizedMember,
-    removeAuthorizedMember,
-} = require("./config");
+const { CONFIG, CONVERT_DIR } = require("./config");
 const { detectPythonRuntime, cleanLocalFiles } = require("./services/audio");
-const { acceptFriendRequest } = require("./services/friends");
 const {
-    extractCommand,
-    handleRoomCommand,
-    resetQueue,
-    getQueueState,
-    playSong,
-    skipSong,
-    stopSong,
-    clearQueue,
-    playRadio,
-    isBotAdmin,
-} = require("./handlers/commands");
+    sendRoomEmote,
+    sendWhisper,
+    changeFaceExpression,
+    stopVibeAnimation,
+} = require("./services/vibe");
 const {
-    handleAdminWhisper,
-    addRoomAdmin,
-    removeRoomAdmin,
-    addRoomWhitelist,
-    removeRoomWhitelist,
-    addRoomBan,
-    removeRoomBan,
-    kickRoomMember,
-} = require("./handlers/admin");
+    joinTargetRoom,
+    scheduleRetryJoin,
+    clearRetryJoin,
+} = require("./services/room");
+const { handleAccountBeep } = require("./handlers/beep");
+const { registerRoomEvents } = require("./handlers/events");
+const { getBotStatus, handleWebAction } = require("./handlers/webActions");
 const { startWebServer, stopWebServer, notifyWebUpdate } = require("./web/server");
 
 const botStartTime = Date.now();
-let currentSocket = null;
-let botPlayer = null;
-let currentRoomData = null;
-let isInRoom = false;
-let knownCharacters = new Set();
-const characterNames = new Map();
-let vibeTimer = null;
-let retryJoinTimer = null;
 
-function getBotStatus() {
-    const queueState = getQueueState();
-    const characters = (currentRoomData && Array.isArray(currentRoomData.Character))
-        ? currentRoomData.Character.map(c => ({
-            memberNumber: c.MemberNumber,
-            name: c.Name || getCharacterName(c.MemberNumber),
-        }))
-        : [];
-
-    const stationList = Object.keys(STATIONS).map(key => ({
-        id: key,
-        name: STATIONS[key].name,
-    }));
-
-    const authMembers = Array.from(MASTER_ADMINS).map(id => ({
-        memberNumber: id,
-        name: getCharacterName(id),
-    }));
-
-    return {
-        bot: {
-            name: botPlayer ? (botPlayer.Name || CONFIG.accountName) : CONFIG.accountName,
-            accountName: CONFIG.accountName,
-            memberNumber: botPlayer ? botPlayer.MemberNumber : null,
-            targetRoom: CONFIG.targetRoom,
-            isOnline: Boolean(botPlayer) && Boolean(currentSocket && currentSocket.connected),
-            friendsCount: botPlayer && Array.isArray(botPlayer.FriendList) ? botPlayer.FriendList.length : 0,
-            uptime: Math.floor((Date.now() - botStartTime) / 1000),
-        },
-        room: {
-            name: currentRoomData ? currentRoomData.Name : CONFIG.targetRoom,
-            space: currentRoomData ? (currentRoomData.Space || CONFIG.targetSpace || "") : "",
-            isInRoom: Boolean(isInRoom && currentRoomData),
-            players: characters,
-            playerCount: characters.length,
-            admins: currentRoomData && Array.isArray(currentRoomData.Admin) ? currentRoomData.Admin : [],
-            whitelist: currentRoomData && Array.isArray(currentRoomData.Whitelist) ? currentRoomData.Whitelist : [],
-            ban: currentRoomData && Array.isArray(currentRoomData.Ban) ? currentRoomData.Ban : [],
-            musicUrl: currentRoomData && currentRoomData.Custom ? (currentRoomData.Custom.MusicURL || "") : "",
-        },
-        playback: {
-            currentTrack: queueState.currentTrack,
-            currentStation: queueState.currentStation,
-            isConverting: queueState.isConverting,
-        },
-        queue: queueState.songQueue || [],
-        stations: stationList,
-        authorizedMembers: authMembers,
-    };
-}
-
-async function handleWebAction(data) {
-    if (!data || typeof data !== "object") {
-        return { success: false, message: "Invalid payload." };
-    }
-    if (!currentSocket || !currentSocket.connected || !isInRoom || !currentRoomData) {
-        return { success: false, message: "Bot is offline or not currently inside a room." };
-    }
-
-    const context = getContext(currentSocket);
-    const { action } = data;
-
-    switch (action) {
-        case "play":
-            return await playSong(context, data.query, "Web", data.requester || "Web DJ");
-        case "skip":
-            return skipSong(context, data.requester || "Web DJ");
-        case "stop":
-            return stopSong(context, data.requester || "Web DJ");
-        case "clear":
-            return clearQueue(context, data.requester || "Web DJ");
-        case "radio":
-            return playRadio(context, data.genre, data.requester || "Web DJ");
-        case "chat": {
-            const msg = (data.message || "").trim();
-            if (!msg) return { success: false, message: "Message cannot be empty." };
-            if (data.isEmote) {
-                sendRoomEmote(currentSocket, msg.startsWith("*") ? msg : `* ${msg}`);
-            } else {
-                currentSocket.emit("ChatRoomChat", {
-                    Content: msg,
-                    Type: "Chat",
-                });
-            }
-            return { success: true, message: "Message successfully sent to the room." };
+// Shared Bot State
+const state = {
+    currentSocket: null,
+    botPlayer: null,
+    currentRoomData: null,
+    isInRoom: false,
+    knownCharacters: new Set(),
+    characterNames: new Map(),
+    getCharacterName(memberNumber) {
+        if (!memberNumber) return "Someone";
+        if (state.characterNames.has(memberNumber)) {
+            return state.characterNames.get(memberNumber);
         }
-        case "expression": {
-            const { group, expression } = data;
-            if (!group || !expression) return { success: false, message: "Group and expression are required." };
-            changeFaceExpression(currentSocket, group, expression);
-            return { success: true, message: `Expression for ${group} changed to ${expression}.` };
-        }
-        case "admin": {
-            const { subAction, memberNumber, operatorNumber } = data;
-            const op = operatorNumber || (botPlayer ? botPlayer.MemberNumber : 0);
-            switch (subAction) {
-                case "addAdmin":
-                    return addRoomAdmin(context, memberNumber, op);
-                case "removeAdmin":
-                    return removeRoomAdmin(context, memberNumber, op);
-                case "addWhitelist":
-                    return addRoomWhitelist(context, memberNumber, op);
-                case "removeWhitelist":
-                    return removeRoomWhitelist(context, memberNumber, op);
-                case "addBan":
-                    return addRoomBan(context, memberNumber, op);
-                case "removeBan":
-                    return removeRoomBan(context, memberNumber, op);
-                case "kick":
-                    return kickRoomMember(context, memberNumber, op);
-                default:
-                    return { success: false, message: `Unknown admin sub-action '${subAction}'.` };
+        if (state.currentRoomData && Array.isArray(state.currentRoomData.Character)) {
+            const found = state.currentRoomData.Character.find(c => c.MemberNumber === memberNumber);
+            if (found && found.Name) {
+                state.characterNames.set(memberNumber, found.Name);
+                return found.Name;
             }
         }
-        case "authorizedMember": {
-            const { subAction, memberNumber, roomName, space, password } = data;
-            if (subAction === "add") {
-                const res = addAuthorizedMember(memberNumber);
-                if (res.success) {
-                    const num = parseInt(memberNumber, 10);
-                    if (num && isInRoom && currentRoomData && isBotAdmin(botPlayer, currentRoomData)) {
-                        addRoomAdmin(context, num, botPlayer.MemberNumber);
-                    }
-                }
-                notifyWebUpdate();
-                return res;
-            }
-            if (subAction === "remove") {
-                const res = removeAuthorizedMember(memberNumber);
-                if (res.success) {
-                    const num = parseInt(memberNumber, 10);
-                    if (num && isInRoom && currentRoomData && isBotAdmin(botPlayer, currentRoomData)) {
-                        if (Array.isArray(currentRoomData.Admin) && currentRoomData.Admin.includes(num)) {
-                            removeRoomAdmin(context, num, botPlayer.MemberNumber);
-                        }
-                    }
-                }
-                notifyWebUpdate();
-                return res;
-            }
-            if (subAction === "switchRoom") {
-                if (!roomName || !roomName.trim()) {
-                    return { success: false, message: "Nama ruangan tidak boleh kosong." };
-                }
-                const target = roomName.trim();
-                switchRoom(currentSocket, target, space || "", password || "");
-                return { success: true, message: `Memerintahkan bot untuk berpindah ke ruangan "${target}"...` };
-            }
-            return { success: false, message: `Unknown authorizedMember sub-action '${subAction}'.` };
-        }
-        default:
-            return { success: false, message: `Unknown action '${action}'.` };
-    }
-}
-
-function getCharacterName(memberNumber) {
-    if (!memberNumber) return "Someone";
-    if (characterNames.has(memberNumber)) {
-        return characterNames.get(memberNumber);
-    }
-    if (currentRoomData && Array.isArray(currentRoomData.Character)) {
-        const found = currentRoomData.Character.find(c => c.MemberNumber === memberNumber);
-        if (found && found.Name) {
-            characterNames.set(memberNumber, found.Name);
-            return found.Name;
-        }
-    }
-    return `Member #${memberNumber}`;
-}
-
-function sendRoomEmote(socket, msg) {
-    socket.emit("ChatRoomChat", {
-        Content: msg,
-        Type: "Emote",
-        Dictionary: [{ Tag: "MsgId", MsgId: Date.now().toString() }],
-    });
-}
-
-function sendWhisper(socket, targetMemberNumber, msg) {
-    if (!socket || !targetMemberNumber) return;
-    socket.emit("ChatRoomChat", {
-        Content: msg,
-        Type: "Whisper",
-        Target: Number(targetMemberNumber),
-    });
-}
-
-function changeFaceExpression(socket, group, expression) {
-    socket.emit("ChatRoomCharacterExpressionUpdate", {
-        Group: group,
-        Name: expression,
-    });
-}
+        return `Member #${memberNumber}`;
+    },
+};
 
 function getContext(socket) {
     return {
         socket,
-        botPlayer,
-        currentRoomData,
-        isInRoom,
-        getCharacterName,
+        get botPlayer() { return state.botPlayer; },
+        get currentRoomData() { return state.currentRoomData; },
+        get isInRoom() { return state.isInRoom; },
+        set isInRoom(val) { state.isInRoom = val; },
+        set currentRoomData(val) { state.currentRoomData = val; },
+        getCharacterName: state.getCharacterName,
         sendRoomEmote,
         sendWhisper,
         changeFaceExpression,
@@ -277,8 +84,14 @@ async function startBot() {
     console.log(`📊 Web Dashboard  : http://localhost:${CONFIG.webPort}`);
     console.log("----------------------------------------------------------");
 
-    startWebServer(CONFIG.webPort, getBotStatus, handleWebAction);
+    // Start Web Server & Dashboard
+    startWebServer(
+        CONFIG.webPort,
+        () => getBotStatus(state, botStartTime),
+        (data) => handleWebAction(getContext(state.currentSocket), state, data)
+    );
 
+    // Establish Socket Connection to Game Server
     const socket = io(CONFIG.serverUrl, {
         transports: ["websocket"],
         reconnection: true,
@@ -291,7 +104,8 @@ async function startBot() {
         },
     });
 
-    currentSocket = socket;
+    state.currentSocket = socket;
+    const context = getContext(socket);
 
     socket.on("connect", () => {
         console.log("✅ Connected to BC socket server! (Socket ID: " + socket.id + ")");
@@ -310,14 +124,14 @@ async function startBot() {
         }
 
         if (res && res.AccountName) {
-            botPlayer = res;
-            if (!Array.isArray(botPlayer.FriendList)) {
-                botPlayer.FriendList = [];
+            state.botPlayer = res;
+            if (!Array.isArray(state.botPlayer.FriendList)) {
+                state.botPlayer.FriendList = [];
             }
             console.log(`🎉 Login Successful!`);
             console.log(`   Character Name : ${res.Name || res.AccountName}`);
             console.log(`   Member Number  : #${res.MemberNumber}`);
-            console.log(`   Friends Count  : ${botPlayer.FriendList.length}`);
+            console.log(`   Friends Count  : ${state.botPlayer.FriendList.length}`);
             console.log("----------------------------------------------------------");
             console.log(`🚪 Joining private room "${CONFIG.targetRoom}"...`);
             console.log(`💡 NOTE: Ensure member #${res.MemberNumber} (${res.Name || res.AccountName}) is on the Whitelist/Admin list of the room!`);
@@ -328,14 +142,14 @@ async function startBot() {
     });
 
     socket.on("ChatRoomSearchResponse", (data) => {
-        if (isInRoom) return;
+        if (state.isInRoom) return;
 
         if (data === "CannotFindRoom" || data === "RoomLocked") {
             process.stdout.write(`\r⏳ Waiting to access room "${CONFIG.targetRoom}" (Response: ${data}). Retrying... `);
-            scheduleRetryJoin(socket, 5000);
+            scheduleRetryJoin(socket, 5000, () => state.isInRoom);
         } else if (data === "RoomFull") {
             console.warn(`\n⚠️ Room "${CONFIG.targetRoom}" is currently full. Retrying in 8s...`);
-            scheduleRetryJoin(socket, 8000);
+            scheduleRetryJoin(socket, 8000, () => state.isInRoom);
         } else if (data === "JoinedRoom") {
             console.log(`\n✅ Server response: Successfully joined room!`);
         } else {
@@ -343,356 +157,26 @@ async function startBot() {
         }
     });
 
-    // Beep / Invite Listener: If owner (#245253) sends "join here" or room invite, bot navigates to that room
+    // In-game Beep & Invite listener
     socket.on("AccountBeep", (data) => {
-        if (!data || typeof data !== "object") return;
-
-        console.log(`\n📩 Incoming Beep from Member #${data.MemberNumber} (${data.MemberName || 'Unknown'}):`);
-        console.log(`   Packet:`, JSON.stringify(data));
-
-        const senderId = Number(data.MemberNumber);
-        const senderName = data.MemberName || "Unknown";
-        const isMaster = MASTER_ADMINS.has(senderId);
-
-        // Convert message to string whether it's a plain string or an object from an addon (GGC/BCX)
-        let msg = "";
-        if (typeof data.Message === "string") {
-            msg = data.Message.trim();
-        } else if (data.Message && typeof data.Message === "object") {
-            const rawMsgJson = JSON.stringify(data.Message);
-            // Ignore pure addon background heartbeat/ping without user text
-            if (rawMsgJson.includes("GGC_BEEP_PING") && !rawMsgJson.toLowerCase().includes("join")) {
-                console.log(`   ℹ️ [Filter] Ignored background GGC ping.`);
-                return;
-            }
-            msg = data.Message.text || data.Message.message || data.Message.Content || rawMsgJson;
-            if (typeof msg === "object") msg = JSON.stringify(msg);
-        }
-
-        // Ignore pure addon background pings with no user command
-        if (data.BeepType === "GGC_BEEP" && msg.includes("GGC_BEEP_PING") && !msg.toLowerCase().includes("join")) {
-            return;
-        }
-
-        // Auto-accept Beep Friend Request
-        if (
-            data.BeepType === "FriendRequest" ||
-            /(?:add\s*friend|friend\s*request|teman|jadi\s*teman|terima\s*teman)/i.test(msg)
-        ) {
-            console.log(`🤝 [Beep Friend Request] Member #${senderId} (${senderName}) requested friendship via Beep! Auto-accepting...`);
-            acceptFriendRequest({
-                socket,
-                botPlayer,
-                isInRoom,
-                senderNumber: senderId,
-                senderName,
-                getCharacterName,
-                sendRoomEmote,
-                changeFaceExpression,
-            });
-            try {
-                socket.emit("AccountBeep", {
-                    MemberNumber: senderId,
-                    Message: `[${botPlayer ? botPlayer.Name : CONFIG.accountName} Music] Accepted your friend request! 🤝✨`,
-                });
-            } catch (err) {}
-            return;
-        }
-
-        const space = data.ChatRoomSpace || "";
-
-        // Clean invisible unicode characters and addon prefixes
-        let cleanMsg = msg.replace(/[\u200B-\u200D\uFEFF\u2060-\u2064]/g, '').trim();
-        cleanMsg = cleanMsg.replace(/LikoMAT:[a-zA-Z0-9_-]+/gi, '').trim();
-
-        // Check for join commands: "join <room>", "!join <room>", "join here", "join sini", "masuk <room>", etc.
-        const isJoinCommand = /^(?:!|\/)?(?:join\s+here|join\s+sini|masuk\s+sini|join|masuk)(?:\s+|$)/i.test(cleanMsg);
-
-        if (isJoinCommand) {
-            if (!isMaster) {
-                console.warn(`⛔ [Unauthorized Beep Command] Member #${senderId} (${senderName}) attempted to command room join: "${msg}"`);
-                try {
-                    socket.emit("AccountBeep", {
-                        MemberNumber: senderId,
-                        Message: `⛔ [${botPlayer ? botPlayer.Name : CONFIG.accountName} Music] Access denied! Only authorized bot owners can command the bot to switch rooms.`
-                    });
-                } catch (err) {}
-                return;
-            }
-
-            // Master Admin (#245253 / #249540) ordering bot to join a room
-            const joinMatch = cleanMsg.match(/^(?:!|\/)?(?:join\s+here|join\s+sini|masuk\s+sini|join|masuk)(?:\s*[:\-]?\s*(.+))?$/i);
-            let rawRoom = joinMatch && joinMatch[1] ? joinMatch[1].trim() : "";
-
-            let targetRoomToJoin = null;
-            let roomPassword = "";
-
-            if (rawRoom) {
-                let candidate = rawRoom.replace(/^["'(\[<]+|["')\]>]+$/g, '').trim();
-                // Support optional password via pipe or colon (e.g. RoomName|password or RoomName:password)
-                if (candidate.includes("|")) {
-                    const parts = candidate.split("|");
-                    candidate = parts[0].trim();
-                    roomPassword = parts[1].trim();
-                } else if (candidate.includes(":") && !candidate.includes("://")) {
-                    const parts = candidate.split(":");
-                    candidate = parts[0].trim();
-                    roomPassword = parts[1].trim();
-                }
-
-                if (candidate && !candidate.includes("{") && !candidate.includes("}")) {
-                    targetRoomToJoin = candidate;
-                }
-            }
-
-            // Priority 2: Fallback to attached ChatRoomName in beep packet (from "join here" or client invite)
-            if (!targetRoomToJoin && data.ChatRoomName) {
-                targetRoomToJoin = data.ChatRoomName;
-            }
-
-            if (targetRoomToJoin) {
-                console.log(`🎯 [Master Command] Member #${senderId} (${senderName}) ordered bot to join "${targetRoomToJoin}" (Space: "${space || 'Default'}")!`);
-                try {
-                    socket.emit("AccountBeep", {
-                        MemberNumber: senderId,
-                        Message: `Understood! Joining "${targetRoomToJoin}" now 🎵`
-                    });
-                } catch (err) {
-                    console.warn("Failed to send reply beep:", err.message);
-                }
-                switchRoom(socket, targetRoomToJoin, space, roomPassword);
-            } else {
-                console.warn(`⚠️ Received join command from #${senderId}, but room name could not be identified.`);
-                try {
-                    socket.emit("AccountBeep", {
-                        MemberNumber: senderId,
-                        Message: `Please specify the room name: "join <RoomName>" or send a room invite beep.`
-                    });
-                } catch (err) {}
-            }
-            return;
-        }
-
-        // Native in-game Room Invite
-        if (isMaster && data.BeepType === "ChatRoomInvite" && data.ChatRoomName) {
-            const targetRoomToJoin = data.ChatRoomName;
-            console.log(`🚪 Native room invite to "${targetRoomToJoin}" received from Member #${senderId}! Navigating bot...`);
-            try {
-                socket.emit("AccountBeep", {
-                    MemberNumber: senderId,
-                    Message: `Joining room "${targetRoomToJoin}"...`
-                });
-            } catch (err) {}
-            switchRoom(socket, targetRoomToJoin, space);
-            return;
-        }
+        handleAccountBeep(context, data);
     });
 
-    socket.on("ChatRoomSync", (data) => {
-        if (!data || !data.Name) return;
+    // Register all in-room events
+    registerRoomEvents(socket, context, state);
 
-        isInRoom = true;
-        currentRoomData = data;
-        if (retryJoinTimer) {
-            clearTimeout(retryJoinTimer);
-            retryJoinTimer = null;
-        }
-
-        const charList = Array.isArray(data.Character) ? data.Character : [];
-        console.log(`\n==========================================================`);
-        console.log(`📍 Bot character IS NOW IN ROOM: "${data.Name}"!`);
-        console.log(`👥 Players in room (${charList.length}): ${charList.map(c => c.Name).join(", ") || "Only bot"}`);
-        console.log(`👑 Room Admins: ${Array.isArray(data.Admin) ? data.Admin.join(", ") : "None"}`);
-        
-        const activeMusic = data.Custom && data.Custom.MusicURL;
-        console.log(`🎵 Current Room Music: ${activeMusic ? activeMusic : "None active"}`);
-        console.log(`==========================================================\n`);
-
-        setTimeout(() => {
-            const myName = botPlayer ? (botPlayer.Name || CONFIG.accountName) : CONFIG.accountName;
-            const welcomeMsg = `🎵 [${myName} Music] Ready to play synced music in ${data.Name}! Type !help to see commands & radio genres 🎧`;
-            charList.forEach(c => {
-                if (c.MemberNumber && botPlayer && c.MemberNumber !== botPlayer.MemberNumber) {
-                    sendWhisper(socket, c.MemberNumber, welcomeMsg);
-                }
-            });
-        }, 1500);
-
-        charList.forEach(c => {
-            if (c.MemberNumber && c.Name) {
-                characterNames.set(c.MemberNumber, c.Name);
-            }
-            if (c.MemberNumber !== botPlayer.MemberNumber && !knownCharacters.has(c.MemberNumber)) {
-                knownCharacters.add(c.MemberNumber);
-            }
-        });
-
-        // Prune members who left from knownCharacters
-        const currentMemberNums = new Set(charList.map(c => c.MemberNumber));
-        knownCharacters.forEach(num => {
-            if (!currentMemberNums.has(num)) {
-                knownCharacters.delete(num);
-            }
-        });
-
-        notifyWebUpdate();
-        startVibeAnimation(socket);
-    });
-
-    // Greet players via whisper when they join or re-join the room
-    socket.on("ChatRoomSyncMemberJoin", (data) => {
-        if (!data || !data.Character) return;
-        const newChar = data.Character;
-        const memberNum = Number(newChar.MemberNumber);
-        if (newChar && memberNum && newChar.Name) {
-            characterNames.set(memberNum, newChar.Name);
-        }
-        if (currentRoomData && Array.isArray(currentRoomData.Character)) {
-            const exists = currentRoomData.Character.some(c => c.MemberNumber === memberNum);
-            if (!exists) {
-                currentRoomData.Character.push(newChar);
-            }
-        }
-        notifyWebUpdate();
-
-        if (botPlayer && memberNum === botPlayer.MemberNumber) return;
-
-        // When a player joins (or rejoins after leaving), send the welcome whisper again
-        if (!knownCharacters.has(memberNum)) {
-            knownCharacters.add(memberNum);
-            setTimeout(() => {
-                const stillInRoom = currentRoomData && Array.isArray(currentRoomData.Character)
-                    ? currentRoomData.Character.some(c => c.MemberNumber === memberNum)
-                    : true;
-                if (!stillInRoom) return;
-
-                const myName = botPlayer ? (botPlayer.Name || CONFIG.accountName) : CONFIG.accountName;
-                const roomName = currentRoomData ? currentRoomData.Name : CONFIG.targetRoom;
-                const welcomeMsg = `🎵 [${myName} Music] Ready to play synced music in ${roomName}! Type !help to see commands & radio genres 🎧`;
-                sendWhisper(socket, memberNum, welcomeMsg);
-            }, 1500);
-        }
-    });
-
-    // When a player leaves the room, remove them from knownCharacters so they get greeted on re-joining
-    socket.on("ChatRoomSyncMemberLeave", (data) => {
-        let leftMemberNumber = null;
-        if (typeof data === "number") {
-            leftMemberNumber = data;
-        } else if (data && typeof data === "object") {
-            leftMemberNumber = data.SourceMemberNumber || data.MemberNumber || data.Target || data.Sender;
-        }
-
-        if (leftMemberNumber) {
-            const num = Number(leftMemberNumber);
-            knownCharacters.delete(num);
-            if (currentRoomData && Array.isArray(currentRoomData.Character)) {
-                currentRoomData.Character = currentRoomData.Character.filter(c => c.MemberNumber !== num);
-            }
-            console.log(`👋 [Room Leave] Member #${num} (${characterNames.get(num) || "Player"}) left the room.`);
-        }
-        notifyWebUpdate();
-    });
-
-    socket.on("ChatRoomUpdateResponse", (res) => {
-        if (res === "Updated") {
-            console.log("✅ [Server] Room administration update (Music/Settings) ACCEPTED by server!");
-            notifyWebUpdate();
-        } else {
-            console.warn("⚠️ [Server] Room update response:", res);
-        }
-    });
-
-    socket.on("ChatRoomSyncRoomProperties", (data) => {
-        if (data && currentRoomData) {
-            Object.assign(currentRoomData, data);
-            console.log(`🔄 [Room Sync] Room properties synced to all players! MusicURL: "${data.Custom?.MusicURL || 'None'}"`);
-            notifyWebUpdate();
-        }
-    });
-
-    socket.on("ChatRoomMessage", (data) => {
-        if (!data || !data.Content || typeof data.Content !== "string") return;
-
-        const content = data.Content.trim();
-        const sender = data.Sender;
-
-        // Handle ServerLeave action events
-        if (data.Type === "Action" && (content === "ServerLeave" || content === "ServerDisconnect" || content === "ServerBan" || content === "ServerKick")) {
-            let leftNum = sender;
-            if (Array.isArray(data.Dictionary)) {
-                const srcObj = data.Dictionary.find(d => d && (d.SourceMemberNumber || d.MemberNumber || d.TargetMemberNumber));
-                if (srcObj) leftNum = srcObj.SourceMemberNumber || srcObj.MemberNumber || srcObj.TargetMemberNumber;
-            }
-            if (leftNum) {
-                const num = Number(leftNum);
-                knownCharacters.delete(num);
-                if (currentRoomData && Array.isArray(currentRoomData.Character)) {
-                    currentRoomData.Character = currentRoomData.Character.filter(c => c.MemberNumber !== num);
-                }
-                console.log(`👋 [ServerLeave Action] Member #${num} left the room.`);
-            }
-            notifyWebUpdate();
-            return;
-        }
-
-        if (sender && !knownCharacters.has(sender)) {
-            knownCharacters.add(sender);
-        }
-
-        // Native Bondage Club Friend Request received in room
-        if (content === "ChatRoomFriendRequestAdd") {
-            const isForMe = !data.Target || (botPlayer && data.Target === botPlayer.MemberNumber);
-            if (isForMe) {
-                console.log(`🤝 [Friend Request Received] Member #${sender} (${getCharacterName(sender)}) sent a friend request in room! Auto-accepting...`);
-                acceptFriendRequest({
-                    socket,
-                    botPlayer,
-                    isInRoom,
-                    senderNumber: sender,
-                    getCharacterName,
-                    sendRoomEmote,
-                    changeFaceExpression,
-                });
-                notifyWebUpdate();
-                return;
-            }
-        }
-
-        // Private Whisper (/w) to the bot - specifically handles Room Admin commands
-        if (data.Type === "Whisper") {
-            const isForMe = !data.Target || (botPlayer && data.Target === botPlayer.MemberNumber);
-            if (isForMe) {
-                console.log(`🔒 [Whisper from ${getCharacterName(sender)} (#${sender})]: "${content}"`);
-                handleAdminWhisper(getContext(socket), content, sender);
-                notifyWebUpdate();
-                return;
-            }
-        }
-
-        const isInternalAddon = /^(ECHO_|PCM_|CG_|BCEMsg|BCXMsg|KIKILINK|Liko)/.test(content);
-        if (!isInternalAddon) {
-            console.log(`💬 [${getCharacterName(sender)} (#${sender})]: "${content}"`);
-        }
-
-        const cmdText = extractCommand(content);
-        if (!cmdText) return;
-
-        handleRoomCommand(getContext(socket), cmdText, sender);
-        notifyWebUpdate();
-    });
-
-    // Auto-rejoin timer if disconnected from room
+    // Auto-rejoin timer if bot gets disconnected or placed out of room
     setInterval(() => {
-        if (botPlayer && !isInRoom) {
+        if (state.botPlayer && !state.isInRoom) {
             joinTargetRoom(socket);
         }
     }, 12000);
 
     socket.on("disconnect", (reason) => {
-        isInRoom = false;
-        currentRoomData = null;
+        state.isInRoom = false;
+        state.currentRoomData = null;
         stopVibeAnimation();
+        clearRetryJoin();
         notifyWebUpdate();
         console.warn(`\n⚠️ Disconnected from game server (${reason}). Reconnecting...`);
     });
@@ -702,76 +186,7 @@ async function startBot() {
     });
 }
 
-function scheduleRetryJoin(socket, delayMs) {
-    if (retryJoinTimer) clearTimeout(retryJoinTimer);
-    retryJoinTimer = setTimeout(() => {
-        if (!isInRoom) {
-            joinTargetRoom(socket);
-        }
-    }, delayMs);
-}
-
-function joinTargetRoom(socket, roomName = CONFIG.targetRoom, space = (CONFIG.targetSpace || ""), password = (CONFIG.roomPassword || "")) {
-    const packet = { Name: roomName };
-    if (space) packet.Space = space;
-    if (password) packet.Password = password;
-    socket.emit("ChatRoomJoin", packet);
-}
-
-function switchRoom(socket, roomName, space = "", password = "") {
-    if (!roomName) return;
-    CONFIG.targetRoom = roomName;
-    CONFIG.targetSpace = space || "";
-    if (password) CONFIG.roomPassword = password;
-
-    if (isInRoom) {
-        if (currentRoomData && currentRoomData.Name && currentRoomData.Name.toLowerCase() === roomName.toLowerCase()) {
-            console.log(`📍 Bot is already inside room "${roomName}".`);
-            sendRoomEmote(
-                socket,
-                `* 🎵 [${botPlayer ? botPlayer.Name : CONFIG.accountName} Music] I am already here in ${roomName}! Ready for music requests 🎧`
-            );
-            return;
-        }
-
-        console.log(`🚪 Leaving current room "${currentRoomData ? currentRoomData.Name : 'Room'}"...`);
-        socket.emit("ChatRoomLeave", "");
-        isInRoom = false;
-        currentRoomData = null;
-        resetQueue();
-        stopVibeAnimation();
-
-        setTimeout(() => {
-            console.log(`🚪 Joining new room: "${roomName}"...`);
-            joinTargetRoom(socket, roomName, space, password);
-        }, 600);
-    } else {
-        console.log(`🚪 Joining room: "${roomName}"...`);
-        joinTargetRoom(socket, roomName, space, password);
-    }
-}
-
-function startVibeAnimation(socket) {
-    stopVibeAnimation();
-    const eyes = ["Happy", "Wink", "Normal", "Closed"];
-    const mouths = ["Smile", "Sing", "Normal"];
-
-    vibeTimer = setInterval(() => {
-        if (!isInRoom) return;
-        const randomEye = eyes[Math.floor(Math.random() * eyes.length)];
-        const randomMouth = mouths[Math.floor(Math.random() * mouths.length)];
-        changeFaceExpression(socket, "Eyes", randomEye);
-        changeFaceExpression(socket, "Mouth", randomMouth);
-    }, 12000);
-}
-
-function stopVibeAnimation() {
-    if (vibeTimer) {
-        clearInterval(vibeTimer);
-        vibeTimer = null;
-    }
-}
-
+// Graceful Shutdown
 process.on("SIGINT", () => {
     console.log("\n🛑 Stopping bot & cleaning local storage...");
     stopWebServer();
