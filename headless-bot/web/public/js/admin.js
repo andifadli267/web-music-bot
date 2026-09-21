@@ -17,7 +17,7 @@ function updateAdminPanels(data) {
                 const isBot = id === botMemberNumber;
                 const removeBtn = isBot
                     ? ""
-                    : `<button class="member-remove-btn" title="Hapus Admin" onclick="handleRemoveAdmin(${id})">✕</button>`;
+                    : `<button class="member-remove-btn" title="Remove Admin" onclick="handleRemoveAdmin(${id})">✕</button>`;
                 return `
                     <span class="member-item-badge">
                         <span>👑 #${id}</span>
@@ -26,7 +26,7 @@ function updateAdminPanels(data) {
                 `;
             }).join("");
         } else {
-            adminsListEl.innerHTML = `<span class="empty-hint">Tidak ada admin terdaftar.</span>`;
+            adminsListEl.innerHTML = `<span class="empty-hint">No administrators registered.</span>`;
         }
     }
 
@@ -38,11 +38,11 @@ function updateAdminPanels(data) {
             wlListEl.innerHTML = whitelist.map(id => `
                 <span class="member-item-badge">
                     <span>📜 #${id}</span>
-                    <button class="member-remove-btn" title="Hapus dari Whitelist" onclick="handleRemoveWhitelist(${id})">✕</button>
+                    <button class="member-remove-btn" title="Remove from Whitelist" onclick="handleRemoveWhitelist(${id})">✕</button>
                 </span>
             `).join("");
         } else {
-            wlListEl.innerHTML = `<span class="empty-hint">Whitelist kosong (Akses terbuka).</span>`;
+            wlListEl.innerHTML = `<span class="empty-hint">Whitelist is empty (public access open).</span>`;
         }
     }
 
@@ -58,14 +58,14 @@ function updateAdminPanels(data) {
                 </span>
             `).join("");
         } else {
-            banListEl.innerHTML = `<span class="empty-hint">Tidak ada member yang di-ban.</span>`;
+            banListEl.innerHTML = `<span class="empty-hint">No banned members.</span>`;
         }
     }
 }
 
 // Global removal handlers for room admin elements
 window.handleRemoveAdmin = function(memberNumber) {
-    if (!confirm(`Hapus Member #${memberNumber} dari Administrator ruangan?`)) return;
+    if (!confirm(`Remove Member #${memberNumber} from room administrators?`)) return;
     sendBotAction("admin", { subAction: "removeAdmin", memberNumber });
 };
 
@@ -85,7 +85,7 @@ function updateAuthorizedMembers(data) {
 
     const authMembers = Array.isArray(data.authorizedMembers) ? data.authorizedMembers : [];
     if (countBadge) {
-        countBadge.textContent = `${authMembers.length} Member`;
+        countBadge.textContent = `${authMembers.length} ${authMembers.length === 1 ? "Member" : "Members"}`;
     }
 
     if (authMembers.length > 0) {
@@ -98,20 +98,21 @@ function updateAuthorizedMembers(data) {
                         <span class="auth-pill-name">(${escapeHtml(m.name || 'Member')})</span>
                     </div>
                     <div class="auth-pill-right">
-                        <button class="auth-remove-btn" title="Hapus Authorized Member dari Bot & Website" onclick="handleRemoveAuthMember(${m.memberNumber})">
-                            <span>🗑️</span> Hapus
+                        <button class="auth-remove-btn" title="Remove Authorized Member from Bot and Website" onclick="handleRemoveAuthMember(${m.memberNumber})">
+                            <span>🗑️</span> Remove
                         </button>
                     </div>
                 </div>
             `;
         }).join("");
     } else {
-        listEl.innerHTML = `<span class="empty-hint">Belum ada authorized member terdaftar. Tambahkan nomor member di atas.</span>`;
+        listEl.innerHTML = `<span class="empty-hint">No authorized members registered. Add a member number above.</span>`;
     }
 }
 
 // Global removal handler for authorized members
 window.handleRemoveAuthMember = function(memberNumber) {
-    if (!confirm(`Hapus Member #${memberNumber} dari Authorized Member bot & website?`)) return;
+    if (!confirm(`Remove Member #${memberNumber} from bot authorized members?`)) return;
     sendBotAction("authorizedMember", { subAction: "remove", memberNumber });
 };
+

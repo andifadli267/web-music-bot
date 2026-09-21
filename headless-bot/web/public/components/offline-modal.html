@@ -2,25 +2,26 @@
 <div id="bot-offline-overlay" class="offline-overlay hidden">
     <div class="offline-modal">
         <div class="offline-icon">🔌</div>
-        <h2 class="offline-title">Bot Sedang Offline / Tidak Aktif</h2>
-        <p class="offline-desc">Website dashboard dan fungsi kontrol hanya dapat digunakan saat bot Nava aktif dan berada di dalam ruangan permainan.</p>
+        <h2 class="offline-title">Bot Offline / Inactive</h2>
+        <p class="offline-desc">The dashboard and remote controls are active only when bot Nava is online and inside a game room.</p>
         <div class="offline-status-details">
             <div class="offline-step">
                 <span class="step-label">🌐 Web Server:</span>
-                <strong class="step-val text-success">Aktif (Port 3000)</strong>
+                <strong class="step-val text-success">Online (Port 3000)</strong>
             </div>
             <div class="offline-step">
-                <span class="step-label">🤖 Status Bot:</span>
-                <strong id="overlay-bot-status" class="step-val text-danger">Terputus</strong>
+                <span class="step-label">🤖 Bot Status:</span>
+                <strong id="overlay-bot-status" class="step-val text-danger">Disconnected</strong>
             </div>
             <div class="offline-step">
-                <span class="step-label">🚪 Status Ruangan:</span>
-                <strong id="overlay-room-status" class="step-val text-warning">Di Luar Ruangan</strong>
+                <span class="step-label">🚪 Room Status:</span>
+                <strong id="overlay-room-status" class="step-val text-warning">Outside Room</strong>
             </div>
         </div>
         <div class="offline-pulse">
             <span class="pulse-spinner"></span>
-            <span>Mencoba menghubungkan kembali secara otomatis...</span>
+            <span>Attempting automatic reconnection...</span>
         </div>
     </div>
 </div>
+

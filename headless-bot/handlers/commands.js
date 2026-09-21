@@ -87,7 +87,9 @@ function getHelpMessage(myName) {
     return `🎵 [${myName} Music Commands]:\n` +
         `• Play: !play <title / YouTube link> (Max: ${maxMins} mins)\n` +
         `• Queue: !queue | !skip | !clear | !stop | !np\n` +
-        `• Radio: !radio <genre> (lofi, synth, chillsynth, pop, dance, rock, hiphop, jazz)`;
+        `• Radio: !radio <genre> (lofi, synth, chillsynth, pop, dance, rock, hiphop, jazz)\n` +
+        `💬 Tip: You can also use all music commands via private whisper:\n` +
+        `   /w ${myName} !play <song>`;
 }
 
 /**

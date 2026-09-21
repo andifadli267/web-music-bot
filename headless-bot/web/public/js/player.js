@@ -23,7 +23,7 @@ function updatePlayerUI(playback) {
     if (playback.currentTrack) {
         const track = playback.currentTrack;
         if (trackTitleEl) trackTitleEl.textContent = track.title || "Unknown Track";
-        if (trackSubEl) trackSubEl.textContent = "Sedang diputar tersinkronisasi untuk semua pemain di room";
+        if (trackSubEl) trackSubEl.textContent = "Playing synchronized for all players in room";
         if (sourceBadgeEl) {
             sourceBadgeEl.textContent = "YouTube Audio";
             sourceBadgeEl.style.display = "inline-block";
@@ -67,7 +67,7 @@ function updatePlayerUI(playback) {
     } else if (playback.currentStation) {
         const st = playback.currentStation;
         if (trackTitleEl) trackTitleEl.textContent = st.name || "Live Radio";
-        if (trackSubEl) trackSubEl.textContent = "Stasiun Radio Komersial 24/7 (Online Stream)";
+        if (trackSubEl) trackSubEl.textContent = "24/7 Radio Station (Online Stream)";
         if (sourceBadgeEl) {
             sourceBadgeEl.textContent = "24/7 Radio";
             sourceBadgeEl.style.display = "inline-block";
@@ -91,8 +91,8 @@ function updatePlayerUI(playback) {
         }
     } else {
         // Idle
-        if (trackTitleEl) trackTitleEl.textContent = "Tidak ada musik yang diputar";
-        if (trackSubEl) trackSubEl.textContent = "Gunakan form pemutar di bawah atau ketik !play di room chat";
+        if (trackTitleEl) trackTitleEl.textContent = "No music currently playing";
+        if (trackSubEl) trackSubEl.textContent = "Use the player form below or type !play in room chat";
         if (sourceBadgeEl) sourceBadgeEl.style.display = "none";
         if (requesterBoxEl) requesterBoxEl.style.display = "none";
 
@@ -123,18 +123,19 @@ function toggleLocalAudioListen() {
                 localAudioPlaying = true;
                 btnListen.classList.add("playing");
                 if (listenIcon) listenIcon.textContent = "⏸️";
-                if (listenText) listenText.textContent = "Hentikan Audio";
+                if (listenText) listenText.textContent = "Stop Audio";
             }).catch(err => {
-                showToast("Tidak dapat memutar audio: " + err.message, "error");
+                showToast("Unable to play audio: " + err.message, "error");
             });
         } else {
-            showToast("Saat ini belum ada audio yang aktif di ruangan.", "info");
+            showToast("No audio is currently playing in the room.", "info");
         }
     } else {
         webAudio.pause();
         localAudioPlaying = false;
         btnListen.classList.remove("playing");
         if (listenIcon) listenIcon.textContent = "🔊";
-        if (listenText) listenText.textContent = "Dengarkan di Browser";
+        if (listenText) listenText.textContent = "Listen in Browser";
     }
 }
+

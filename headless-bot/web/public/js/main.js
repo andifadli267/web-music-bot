@@ -14,7 +14,7 @@ function updateDashboard(data) {
     setOfflineState(isOnline, isInRoom);
 
     // 2. Update Room Information
-    const roomName = (data.room && data.room.name) ? data.room.name : (data.bot ? data.bot.targetRoom : "Belum Masuk Room");
+    const roomName = (data.room && data.room.name) ? data.room.name : (data.bot ? data.bot.targetRoom : "Not In Room");
     const headerRoomEl = document.getElementById("header-room-name");
     const metaRoomEl = document.getElementById("meta-room-name");
     const metaBotNameEl = document.getElementById("meta-bot-name");
@@ -26,7 +26,7 @@ function updateDashboard(data) {
 
     if (data.bot) {
         if (metaBotNameEl) metaBotNameEl.textContent = `${data.bot.name || "Nava"} (#${data.bot.memberNumber || "258115"})`;
-        if (metaFriendsEl) metaFriendsEl.textContent = `${data.bot.friendsCount || 0} Teman`;
+        if (metaFriendsEl) metaFriendsEl.textContent = `${data.bot.friendsCount || 0} Friends`;
     }
 
     // Room Players List
@@ -34,7 +34,7 @@ function updateDashboard(data) {
     const players = (data.room && Array.isArray(data.room.players)) ? data.room.players : [];
     const admins = (data.room && Array.isArray(data.room.admins)) ? data.room.admins : [];
 
-    if (memberCountBadge) memberCountBadge.textContent = `${players.length} Pemain`;
+    if (memberCountBadge) memberCountBadge.textContent = `${players.length} Players`;
 
     if (playersListEl) {
         if (players.length > 0) {
@@ -59,7 +59,7 @@ function updateDashboard(data) {
                 </span>`;
             }).join("");
         } else {
-            playersListEl.innerHTML = `<span class="player-tag empty-tag">Bot sedang menunggu di room atau belum ada pemain lain.</span>`;
+            playersListEl.innerHTML = `<span class="player-tag empty-tag">Bot is waiting in the room, no other players present.</span>`;
         }
     }
 
@@ -81,7 +81,7 @@ function updateDashboard(data) {
 
                 return `
                     <div class="queue-item">
-                        <span class="queue-idx">#${idx + 1}</span>
+                        <span class="queue-num">#${idx + 1}</span>
                         <div class="queue-info">
                             <div class="queue-title">${escapeHtml(item.title)}</div>
                             <div class="queue-meta">
@@ -96,8 +96,8 @@ function updateDashboard(data) {
             queueListEl.innerHTML = `
                 <div class="queue-empty">
                     <div class="empty-icon">☕</div>
-                    <h3>Antrean Lagu Kosong</h3>
-                    <p>Gunakan form pemutar di samping atau ketik <code>!play judul</code> di room chat untuk menambahkan lagu.</p>
+                    <h3>Queue is Empty</h3>
+                    <p>Use the player form or type <code>!play title</code> in room chat to queue a track.</p>
                 </div>
             `;
         }
@@ -124,7 +124,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const requester = (inputRequester.value || "").trim() || "Web DJ";
             if (!query) return;
 
-            showToast(`Memproses permintaan lagu: "${query}"...`, "info");
+            showToast(`Processing track request: "${query}"...`, "info");
             await sendBotAction("play", { query, requester });
             inputQuery.value = "";
         });
@@ -141,7 +141,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const btnStop = document.getElementById("btn-action-stop");
     if (btnStop) {
         btnStop.addEventListener("click", () => {
-            if (!confirm("Hentikan pemutaran musik di ruangan?")) return;
+            if (!confirm("Stop music playback in the room?")) return;
             sendBotAction("stop", { requester: "Web User" });
         });
     }
@@ -149,7 +149,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const btnClear = document.getElementById("btn-action-clear");
     if (btnClear) {
         btnClear.addEventListener("click", () => {
-            if (!confirm("Bersihkan seluruh antrean lagu?")) return;
+            if (!confirm("Clear the entire music queue?")) return;
             sendBotAction("clear", { requester: "Web User" });
         });
     }
@@ -248,7 +248,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const input = document.getElementById("input-kick-id");
             const memberNumber = parseInt(input.value, 10);
             if (memberNumber) {
-                if (!confirm(`Kick Member #${memberNumber} dari ruangan?`)) return;
+                if (!confirm(`Kick Member #${memberNumber} from the room?`)) return;
                 sendBotAction("admin", { subAction: "kick", memberNumber });
                 input.value = "";
             }
@@ -282,15 +282,31 @@ document.addEventListener("DOMContentLoaded", () => {
             const roomName = (document.getElementById("input-quick-room-name").value || "").trim();
             const password = (document.getElementById("input-quick-room-pass").value || "").trim();
             if (!roomName) return;
-            showToast(`Memerintahkan bot untuk bergabung ke "${roomName}"...`, "info");
+            showToast(`Commanding bot to join "${roomName}"...`, "info");
             await sendBotAction("authorizedMember", { subAction: "switchRoom", roomName, password });
             document.getElementById("input-quick-room-name").value = "";
             document.getElementById("input-quick-room-pass").value = "";
         });
     }
 
-    // 10. Start Real-Time SSE Stream & Initial Fetch
+    // 10. Initialize Theme Toggle (R-21 & R-34)
+    if (typeof initThemeToggle === "function") {
+        initThemeToggle();
+    }
+
+    // 11. Modal Keyboard Accessibility (R-32: Escape closes modal)
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") {
+            const overlay = document.getElementById("bot-offline-overlay");
+            if (overlay && !overlay.classList.contains("hidden")) {
+                overlay.classList.add("hidden");
+            }
+        }
+    });
+
+    // 12. Start Real-Time SSE Stream & Initial Fetch
     initEventStream(updateDashboard);
     fetchStatus(updateDashboard);
     setInterval(() => fetchStatus(updateDashboard), 3000);
 });
+

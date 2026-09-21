@@ -11,6 +11,7 @@
 
 const { CONFIG, MASTER_ADMINS, addAuthorizedMember, removeAuthorizedMember } = require("../config");
 const { extractCommand, isBotAdmin, getHelpMessage, getAdminMenuMessage } = require("./commands");
+const { playSong, skipSong, stopSong, clearQueue, playRadio, getQueueState } = require("../services/music");
 
 /**
  * Checks if a member has room administrator permissions.
@@ -268,7 +269,7 @@ function kickRoomMember(context, targetMember, operatorId = 0) {
 /**
  * Main whisper handler for room administration commands.
  */
-function handleAdminWhisper(context, rawText, sender) {
+async function handleAdminWhisper(context, rawText, sender) {
     const { socket, botPlayer, currentRoomData, sendWhisper, getCharacterName } = context;
     const senderId = Number(sender);
     const myName = botPlayer ? botPlayer.Name : CONFIG.accountName;
@@ -289,7 +290,82 @@ function handleAdminWhisper(context, rawText, sender) {
         return;
     }
 
-    // 2. ADMIN MENU COMMAND VIA WHISPER - Available to Room Admins
+    // 2. MUSIC COMMANDS VIA WHISPER - Available to EVERYONE
+    if (cmd === "!play" || cmd === "!yt") {
+        const rawAfterCmd = text.slice(text.indexOf(parts[0]) + parts[0].length).trim();
+        if (!rawAfterCmd) {
+            sendWhisper(socket, senderId, `ℹ️ [${myName} Music] Usage: /w ${myName} !play <song title or YouTube link>`);
+            return;
+        }
+        const res = await playSong(context, rawAfterCmd, "Whisper", senderId, senderName);
+        // playSong already sends room emotes; optionally whisper status back
+        if (!res || !res.success) {
+            sendWhisper(socket, senderId, `⚠️ [${myName} Music] ${res ? res.message : "Failed to play song."}`);
+        }
+        return;
+    }
+
+    if (cmd === "!skip" || cmd === "!next") {
+        const res = skipSong(context, senderName);
+        sendWhisper(socket, senderId, (res.success ? "⏭️ " : "ℹ️ ") + `[${myName} Music] ` + res.message);
+        return;
+    }
+
+    if (cmd === "!stop") {
+        const res = stopSong(context, senderName);
+        sendWhisper(socket, senderId, `🔇 [${myName} Music] ` + res.message);
+        return;
+    }
+
+    if (cmd === "!clear") {
+        const res = clearQueue(context, senderName);
+        sendWhisper(socket, senderId, `🗑️ [${myName} Music] ` + res.message);
+        return;
+    }
+
+    if (cmd === "!np") {
+        const { currentTrack, currentStation } = getQueueState();
+        if (currentTrack) {
+            sendWhisper(socket, senderId, `🎵 [${myName} Music] Now playing: "${currentTrack.title}" (Requested by ${currentTrack.requesterName || "Member #" + currentTrack.requestedBy})`);
+        } else if (currentStation) {
+            sendWhisper(socket, senderId, `🎵 [${myName} Music] Now playing 24/7 radio: ${currentStation.name}`);
+        } else {
+            sendWhisper(socket, senderId, `🔇 [${myName} Music] No music is currently playing. Type !play <song> to start!`);
+        }
+        return;
+    }
+
+    if (cmd === "!queue" || cmd === "!q") {
+        const { currentTrack, songQueue: queue } = getQueueState();
+        if (!currentTrack && queue.length === 0) {
+            sendWhisper(socket, senderId, `📋 [${myName} Music] Queue is empty! Use !play <song> to request a track.`);
+            return;
+        }
+        let lines = [`📋 [${myName} Music] Queue (${queue.length} tracks):`];
+        if (currentTrack) {
+            lines.push(`▶️ Now Playing: "${currentTrack.title}" (by ${currentTrack.requesterName || "Member #" + currentTrack.requestedBy})`);
+        }
+        queue.forEach((item, idx) => {
+            lines.push(`${idx + 1}. "${item.title}" (by ${item.requesterName || "Member #" + item.requestedBy})`);
+        });
+        sendWhisper(socket, senderId, lines.join("\n"));
+        return;
+    }
+
+    if (cmd === "!radio") {
+        const key = (parts[1] || "").toLowerCase().replace(/^[\(<\[{"']+|[\)>\]}"']+$/g, "").trim();
+        if (!key) {
+            sendWhisper(socket, senderId, `ℹ️ [${myName} Music] Usage: /w ${myName} !radio <genre>\nAvailable: lofi, synth, chillsynth, pop, dance, rock, hiphop, jazz`);
+            return;
+        }
+        const res = playRadio(context, key, senderName);
+        if (!res || !res.success) {
+            sendWhisper(socket, senderId, `⚠️ [${myName} Music] ${res ? res.message : "Unknown radio genre."}`);
+        }
+        return;
+    }
+
+    // 3. ADMIN MENU COMMAND VIA WHISPER - Available to Room Admins
     if (cmd === "!adminmenu" || cmd === "!adminhelp" || cmd === "!menu") {
         if (!isRoomAdmin(botPlayer, currentRoomData, senderId)) {
             sendWhisper(
@@ -303,7 +379,7 @@ function handleAdminWhisper(context, rawText, sender) {
         return;
     }
 
-    // 3. Verify that sender is a Room Administrator or Master Admin for management commands
+    // 4. Verify that sender is a Room Administrator or Master Admin for management commands
     if (!isRoomAdmin(botPlayer, currentRoomData, senderId)) {
         console.warn(`⛔ [Admin Whisper Denied] Non-admin Member #${senderId} (${senderName}) attempted admin whisper: "${text}"`);
         sendWhisper(
@@ -314,7 +390,7 @@ function handleAdminWhisper(context, rawText, sender) {
         return;
     }
 
-    // 3. Check if the bot itself has Room Admin rights to commit changes
+    // 5. Check if the bot itself has Room Admin rights to commit changes
     if (!isBotAdmin(botPlayer, currentRoomData)) {
         sendWhisper(
             socket,

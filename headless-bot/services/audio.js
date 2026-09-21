@@ -118,19 +118,49 @@ async function convertViaYtmp3(youtubeUrl) {
 }
 
 /**
+ * Sanitizes input query or URL by stripping wrapping brackets/parentheses/quotes
+ * and extracting valid URLs if present.
+ */
+function sanitizeQueryOrUrl(queryOrUrl) {
+    if (!queryOrUrl || typeof queryOrUrl !== "string") return "";
+    let q = queryOrUrl.trim();
+    let prev = "";
+    while (q !== prev) {
+        prev = q;
+        if (
+            (q.startsWith("(") && q.endsWith(")")) ||
+            (q.startsWith("[") && q.endsWith("]")) ||
+            (q.startsWith("{") && q.endsWith("}")) ||
+            (q.startsWith("<") && q.endsWith(">")) ||
+            (q.startsWith('"') && q.endsWith('"')) ||
+            (q.startsWith("'") && q.endsWith("'"))
+        ) {
+            q = q.slice(1, -1).trim();
+        }
+    }
+    const urlMatch = q.match(/https?:\/\/[^\s\)\>\]\"\'\}]+/i);
+    if (urlMatch) {
+        return urlMatch[0].replace(/[\.\,\)\>\]\}\"\']+$/, "");
+    }
+    return q;
+}
+
+/**
  * Fast local conversion via yt-dlp + ffmpeg directly in converted_tracks/ folder
  */
 function convertViaYtDlp(queryOrUrl) {
     return new Promise((resolve, reject) => {
+        const cleaned = sanitizeQueryOrUrl(queryOrUrl);
         const fileId = "track_" + Date.now();
         const outputPath = path.join(CONVERT_DIR, `${fileId}.%(ext)s`);
         const finalMp3Path = path.join(CONVERT_DIR, `${fileId}.mp3`);
         const titleFilePath = path.join(CONVERT_DIR, `${fileId}_title.txt`);
         const durationFilePath = path.join(CONVERT_DIR, `${fileId}_duration.txt`);
 
-        const target = (queryOrUrl.startsWith("http://") || queryOrUrl.startsWith("https://")) 
-            ? queryOrUrl 
-            : `ytsearch1:${queryOrUrl}`;
+        const isHttp = cleaned.startsWith("http://") || cleaned.startsWith("https://");
+        const target = isHttp 
+            ? cleaned 
+            : `ytsearch1:${cleaned}`;
 
         const args = [
             ...pythonArgsPrefix,
@@ -146,14 +176,14 @@ function convertViaYtDlp(queryOrUrl) {
             target
         ];
 
-        console.log(`[yt-dlp] Converting "${queryOrUrl}" using ${pythonExecutable} in folder: ${CONVERT_DIR}...`);
+        console.log(`[yt-dlp] Converting "${cleaned}" using ${pythonExecutable} in folder: ${CONVERT_DIR}...`);
         execFile(pythonExecutable, args, { timeout: 75000 }, (err, stdout, stderr) => {
-            let title = queryOrUrl;
+            let title = cleaned;
             let duration = 0;
 
             if (fs.existsSync(titleFilePath)) {
                 try {
-                    title = fs.readFileSync(titleFilePath, "utf8").trim() || queryOrUrl;
+                    title = fs.readFileSync(titleFilePath, "utf8").trim() || cleaned;
                     fs.unlinkSync(titleFilePath);
                 } catch(_) {}
             }
@@ -168,16 +198,55 @@ function convertViaYtDlp(queryOrUrl) {
 
             if (err) {
                 cleanLocalFiles(fileId);
-                return reject(err);
+                let errMsg = err.message;
+                const errCombined = `${stderr || ""} ${stdout || ""}`;
+                if (errCombined.includes("Video unavailable")) errMsg = "Video tidak tersedia di YouTube.";
+                else if (errCombined.includes("Sign in to confirm your age")) errMsg = "Video dibatasi usia (age-restricted).";
+                else if (errCombined.includes("Private video")) errMsg = "Video ini bersifat privat.";
+                return reject(new Error(errMsg));
             }
 
-            if (!fs.existsSync(finalMp3Path)) {
+            // Verify if final MP3 exists, or if another format was saved (e.g. .opus, .webm, .m4a) and transcode
+            let mp3File = finalMp3Path;
+            if (!fs.existsSync(mp3File)) {
+                const candidates = fs.existsSync(CONVERT_DIR)
+                    ? fs.readdirSync(CONVERT_DIR).filter(f => f.startsWith(fileId) && !f.endsWith(".txt"))
+                    : [];
+                if (candidates.length > 0) {
+                    const candidatePath = path.join(CONVERT_DIR, candidates[0]);
+                    if (candidates[0].endsWith(".mp3")) {
+                        mp3File = candidatePath;
+                    } else {
+                        try {
+                            console.log(`[ffmpeg fallback] Transcoding ${candidates[0]} to mp3...`);
+                            execSync(`"${ffmpegPath}" -y -i "${candidatePath}" -vn -ar 44100 -ac 2 -b:a 128k "${finalMp3Path}"`, { timeout: 30000 });
+                            if (fs.existsSync(finalMp3Path)) {
+                                mp3File = finalMp3Path;
+                            }
+                        } catch (convErr) {
+                            console.warn("[ffmpeg fallback warning]:", convErr.message);
+                        }
+                    }
+                }
+            }
+
+            if (!fs.existsSync(mp3File)) {
                 cleanLocalFiles(fileId);
-                return reject(new Error("Converted MP3 file was not found."));
+                let reason = "Lagu atau video tidak ditemukan di YouTube.";
+                const outCombined = `${stdout || ""} ${stderr || ""}`;
+                if (outCombined.includes("Downloading 0 items")) {
+                    reason = "Pencarian tidak menemukan lagu yang cocok di YouTube.";
+                } else if (outCombined.includes("Video unavailable")) {
+                    reason = "Video tidak tersedia di YouTube.";
+                } else if (outCombined.includes("Sign in to confirm your age")) {
+                    reason = "Video dibatasi usia (age-restricted).";
+                } else if (outCombined.includes("Private video")) {
+                    reason = "Video ini bersifat privat.";
+                }
+                return reject(new Error(reason));
             }
 
-            const buffer = fs.readFileSync(finalMp3Path);
-            // Immediately clean up temporary local audio file after reading into memory
+            const buffer = fs.readFileSync(mp3File);
             cleanLocalFiles(fileId);
             resolve({ title, buffer, duration });
         });
@@ -190,19 +259,20 @@ function convertViaYtDlp(queryOrUrl) {
  */
 async function convertYoutubeToMp3(queryOrUrl) {
     let result = null;
-    const isUrl = queryOrUrl.startsWith("http://") || queryOrUrl.startsWith("https://");
+    const cleaned = sanitizeQueryOrUrl(queryOrUrl);
+    const isUrl = cleaned.startsWith("http://") || cleaned.startsWith("https://");
 
     try {
-        if (isUrl && (queryOrUrl.includes("youtube.com") || queryOrUrl.includes("youtu.be"))) {
+        if (isUrl && (cleaned.includes("youtube.com") || cleaned.includes("youtu.be"))) {
             try {
-                result = await convertViaYtmp3(queryOrUrl);
+                result = await convertViaYtmp3(cleaned);
             } catch (e) {
                 console.log(`[YouTube] Info ytmp3.gg (${e.message}), switching automatically to fast local extractor...`);
             }
         }
 
         if (!result) {
-            result = await convertViaYtDlp(queryOrUrl);
+            result = await convertViaYtDlp(cleaned);
         }
 
         const safeTitle = (result.title || "song").replace(/[^a-zA-Z0-9_\-\.]/g, "_").slice(0, 30);
@@ -215,7 +285,13 @@ async function convertYoutubeToMp3(queryOrUrl) {
 
         console.log(`[YouTube] Success! Title: "${result.title}", Direct URL: ${directUrl}, Duration: ${result.duration}s`);
         console.log(`🧹 [Storage] Local converted file for "${result.title}" has been deleted from ${CONVERT_DIR}.`);
-        return { title: result.title, directUrl, duration: result.duration || 0 };
+        return { 
+            success: true,
+            title: result.title, 
+            directUrl, 
+            publicUrl: directUrl, 
+            duration: result.duration || 0 
+        };
     } catch (err) {
         cleanLocalFiles();
         throw err;
@@ -225,6 +301,7 @@ async function convertYoutubeToMp3(queryOrUrl) {
 module.exports = {
     detectPythonRuntime,
     cleanLocalFiles,
+    sanitizeQueryOrUrl,
     convertYoutubeToMp3,
     convertViaYtDlp,
     convertViaYtmp3,

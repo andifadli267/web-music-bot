@@ -6,7 +6,7 @@
  */
 
 const { CONFIG, STATIONS, MAX_QUEUE, MAX_TRACK_DURATION } = require("../config");
-const { convertYoutubeToMp3 } = require("./audio");
+const { convertYoutubeToMp3, sanitizeQueryOrUrl } = require("./audio");
 
 // Queue & Playback State
 const songQueue = []; // Items: { title, directUrl, duration, requestedBy, requesterName }
@@ -204,7 +204,12 @@ async function playSong(context, query, source = "Chat", requesterId = 0, reques
         return { success: false, message: msg };
     }
 
-    const cleanQuery = query.trim();
+    const cleanQuery = sanitizeQueryOrUrl(query);
+    if (!cleanQuery) {
+        const msg = `Please provide a valid song title or URL! Example: !play Linkin Park Numb`;
+        if (typeof sendRoomEmote === "function") sendRoomEmote(socket, `* ℹ️ [${myName} Music] ${msg}`);
+        return { success: false, message: msg };
+    }
 
     // Direct MP3 or MP4 Audio Stream
     if (cleanQuery.startsWith("http://") || cleanQuery.startsWith("https://")) {
@@ -271,16 +276,17 @@ async function playSong(context, query, source = "Chat", requesterId = 0, reques
         const result = await convertYoutubeToMp3(cleanQuery);
         isConverting = false;
 
-        if (!result.success) {
-            const err = result.error || "Gagal mengunduh audio YouTube.";
+        const directUrl = result ? (result.directUrl || result.publicUrl) : null;
+        if (!result || !directUrl) {
+            const err = (result && result.error) || "Gagal mengunduh audio YouTube.";
             if (typeof sendRoomEmote === "function") sendRoomEmote(socket, `* ❌ [${myName} Music] ${err}`);
             if (typeof context.notifyWebRefresh === "function") context.notifyWebRefresh();
             return { success: false, message: err };
         }
 
         const trackItem = {
-            title: result.title,
-            directUrl: result.publicUrl,
+            title: result.title || "YouTube Audio",
+            directUrl: directUrl,
             duration: result.duration || 0,
             requestedBy: requesterId,
             requesterName: name,
@@ -426,3 +432,4 @@ module.exports = {
     clearQueue,
     playRadio,
 };
+

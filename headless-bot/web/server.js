@@ -102,7 +102,7 @@ function startWebServer(port, getStatus, handleAction) {
                 res.writeHead(503, { "Content-Type": "application/json; charset=utf-8" });
                 return res.end(JSON.stringify({
                     success: false,
-                    error: "Bot sedang offline atau tidak berada di dalam ruangan. Website dan kontrol dinonaktifkan.",
+                    error: "Bot is offline or not currently inside a room. Controls are disabled.",
                 }));
             }
 
@@ -119,7 +119,7 @@ function startWebServer(port, getStatus, handleAction) {
                     const parsed = body ? JSON.parse(body) : {};
                     if (typeof handleAction !== "function") {
                         res.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
-                        return res.end(JSON.stringify({ success: false, error: "Handler aksi bot belum terkonfigurasi." }));
+                        return res.end(JSON.stringify({ success: false, error: "Bot action handler is not configured." }));
                     }
 
                     const result = await handleAction(parsed);
@@ -131,7 +131,7 @@ function startWebServer(port, getStatus, handleAction) {
                 } catch (err) {
                     console.error("❌ [API Action Error]:", err);
                     res.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
-                    return res.end(JSON.stringify({ success: false, error: err.message || "Gagal memproses aksi." }));
+                    return res.end(JSON.stringify({ success: false, error: err.message || "Failed to process action." }));
                 }
             });
             return;

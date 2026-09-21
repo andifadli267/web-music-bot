@@ -8,7 +8,7 @@ const API_ACTION_URL = "/api/action";
 
 async function sendBotAction(action, payload = {}) {
     if (typeof isBotActiveState !== "undefined" && !isBotActiveState) {
-        showToast("Bot sedang offline atau tidak di dalam ruangan. Aksi dibatalkan.", "error");
+        showToast("Bot is offline or not currently inside a room. Action cancelled.", "error");
         return { success: false, error: "Bot offline" };
     }
 
@@ -21,19 +21,19 @@ async function sendBotAction(action, payload = {}) {
 
         const data = await res.json();
         if (!res.ok || data.success === false) {
-            const errText = data.error || data.message || "Aksi gagal dijalankan.";
+            const errText = data.error || data.message || "Failed to execute action.";
             showToast(errText, "error");
             return data;
         }
 
-        showToast(data.message || "Aksi berhasil dikirim ke bot!", "success");
+        showToast(data.message || "Action sent to bot successfully.", "success");
         if (typeof fetchStatus === "function") {
             fetchStatus();
         }
         return data;
     } catch (err) {
         console.error("Action error:", err);
-        showToast(`Gagal menghubungi server: ${err.message}`, "error");
+        showToast(`Failed to reach server: ${err.message}`, "error");
         return { success: false, error: err.message };
     }
 }
@@ -53,7 +53,7 @@ async function fetchStatus(onSuccess, onError) {
         if (typeof onError === "function") {
             onError(err);
         } else if (typeof setOfflineState === "function") {
-            setOfflineState(false, false, "Gagal menghubungi Web Server");
+            setOfflineState(false, false, "Failed to reach Web Server");
         }
     }
 }
@@ -83,3 +83,4 @@ function initEventStream(onUpdate) {
 
     return eventSource;
 }
+

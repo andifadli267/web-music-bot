@@ -69,25 +69,25 @@ function setOfflineState(isOnline, isInRoom, customMsg = "") {
 
     if (isBotActiveState) {
         if (overlay) overlay.classList.add("hidden");
-        if (botIndicator) botIndicator.style.backgroundColor = "#00ff9d";
+        if (botIndicator) botIndicator.style.backgroundColor = "var(--success)";
         if (botText) botText.textContent = "Online";
-        if (headerLiveDot) headerLiveDot.style.backgroundColor = "#00ff9d";
+        if (headerLiveDot) headerLiveDot.style.backgroundColor = "var(--success)";
 
         interactiveElements.forEach(el => {
             el.disabled = false;
         });
     } else {
         if (overlay) overlay.classList.remove("hidden");
-        if (botIndicator) botIndicator.style.backgroundColor = "#ff007a";
-        if (botText) botText.textContent = isOnline ? "Di Luar Room" : "Offline";
-        if (headerLiveDot) headerLiveDot.style.backgroundColor = "#ff007a";
+        if (botIndicator) botIndicator.style.backgroundColor = "var(--danger)";
+        if (botText) botText.textContent = isOnline ? "Outside Room" : "Offline";
+        if (headerLiveDot) headerLiveDot.style.backgroundColor = "var(--danger)";
 
         if (overlayBotStatus) {
-            overlayBotStatus.textContent = isOnline ? "Terhubung ke Game" : "Terputus / Offline";
+            overlayBotStatus.textContent = isOnline ? "Connected to Game" : "Disconnected / Offline";
             overlayBotStatus.className = `step-val ${isOnline ? "text-success" : "text-danger"}`;
         }
         if (overlayRoomStatus) {
-            overlayRoomStatus.textContent = isInRoom ? "Di Dalam Room" : (customMsg || "Belum Bergabung ke Ruangan");
+            overlayRoomStatus.textContent = isInRoom ? "Inside Room" : (customMsg || "Not Joined to Room");
             overlayRoomStatus.className = `step-val ${isInRoom ? "text-success" : "text-warning"}`;
         }
 
@@ -96,3 +96,33 @@ function setOfflineState(isOnline, isInRoom, customMsg = "") {
         });
     }
 }
+
+/**
+ * Theme Toggle Manager (R-21 & R-34)
+ * Allows users to toggle between Light & Dark themes with localStorage persistence.
+ */
+function initThemeToggle() {
+    const toggleBtn = document.getElementById("theme-toggle");
+    const themeIcon = document.getElementById("theme-icon");
+    if (!toggleBtn) return;
+
+    // Check saved preference or default to dark
+    const savedTheme = localStorage.getItem("nava_theme") || "dark";
+    applyTheme(savedTheme);
+
+    toggleBtn.addEventListener("click", () => {
+        const currentTheme = document.documentElement.getAttribute("data-theme") || "dark";
+        const nextTheme = currentTheme === "dark" ? "light" : "dark";
+        applyTheme(nextTheme);
+        localStorage.setItem("nava_theme", nextTheme);
+        showToast(`Theme switched to ${nextTheme === "dark" ? "Dark Mode" : "Light Mode"}`, "info");
+    });
+
+    function applyTheme(theme) {
+        document.documentElement.setAttribute("data-theme", theme);
+        if (themeIcon) {
+            themeIcon.textContent = theme === "dark" ? "🌙" : "☀️";
+        }
+    }
+}
+

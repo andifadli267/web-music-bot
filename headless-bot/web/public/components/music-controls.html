@@ -3,7 +3,7 @@
     <div class="card-header">
         <div class="header-tag">
             <span>🎛️</span>
-            <span>KONTROL PEMUTAR MUSIK</span>
+            <span>MUSIC PLAYER CONTROLS</span>
         </div>
         <span class="badge badge-accent">Remote Control</span>
     </div>
@@ -13,23 +13,23 @@
         <form id="form-play" class="play-form">
             <div class="form-row">
                 <div class="input-group flex-2">
-                    <label for="input-query">Judul Lagu atau URL (YouTube / .mp3 / .mp4):</label>
+                    <label for="input-query">Song Title or URL (YouTube / .mp3 / .mp4):</label>
                     <div class="input-with-icon">
                         <span class="input-icon">🔍</span>
-                        <input type="text" id="input-query" placeholder="Contoh: Linkin Park Numb atau link YouTube..." required autocomplete="off">
+                        <input type="text" id="input-query" placeholder="e.g. Linkin Park Numb or YouTube link..." required autocomplete="off">
                     </div>
                 </div>
                 <div class="input-group flex-1">
-                    <label for="input-requester">Nama Pemesan:</label>
+                    <label for="input-requester">Requester Name:</label>
                     <div class="input-with-icon">
                         <span class="input-icon">👤</span>
-                        <input type="text" id="input-requester" placeholder="Nama Anda (Web DJ)" value="Web DJ">
+                        <input type="text" id="input-requester" placeholder="Your Name (Web DJ)" value="Web DJ">
                     </div>
                 </div>
             </div>
             <div class="form-actions">
                 <button type="submit" id="btn-submit-play" class="btn btn-primary">
-                    <span>▶️</span> Putar / Antrikan Lagu
+                    <span>▶️</span> Play / Queue Track
                 </button>
             </div>
         </form>
@@ -37,20 +37,20 @@
         <!-- Quick Music Action Buttons -->
         <div class="quick-actions-bar">
             <button id="btn-action-skip" class="btn btn-secondary">
-                <span>⏭️</span> Skip Lagu
+                <span>⏭️</span> Skip Track
             </button>
             <button id="btn-action-stop" class="btn btn-danger">
-                <span>⏹️</span> Stop Musik
+                <span>⏹️</span> Stop Music
             </button>
             <button id="btn-action-clear" class="btn btn-warning">
-                <span>🗑️</span> Hapus Antrean
+                <span>🗑️</span> Clear Queue
             </button>
         </div>
 
         <!-- 24/7 Radio Station Quick Buttons -->
         <div class="radio-section">
             <div class="radio-label">
-                <span>📻</span> <strong>Stasiun Radio 24/7:</strong> (Klik untuk memutar langsung)
+                <span>📻</span> <strong>24/7 Radio Stations:</strong> (Click to play instantly)
             </div>
             <div class="radio-grid" id="radio-grid">
                 <button class="btn-radio" data-genre="lofi">☕ Lofi Hip-Hop</button>
@@ -65,3 +65,4 @@
         </div>
     </div>
 </section>
+

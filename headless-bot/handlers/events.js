@@ -219,3 +219,4 @@ function registerRoomEvents(socket, context, state) {
 module.exports = {
     registerRoomEvents,
 };
+

@@ -3,52 +3,52 @@
     <div class="card-header">
         <div class="header-tag">
             <span>⭐</span>
-            <span>AUTHORIZED MEMBERS & PERINTAH KHUSUS</span>
+            <span>AUTHORIZED MEMBERS & COMMANDS</span>
         </div>
-        <span id="auth-count-badge" class="badge badge-accent">2 Member</span>
+        <span id="auth-count-badge" class="badge badge-accent">2 Members</span>
     </div>
 
     <div class="authorized-body">
-        <!-- Form Menambahkan Authorized Member -->
+        <!-- Add Authorized Member Form -->
         <div class="auth-add-section">
-            <h4 class="auth-section-title">Tambah Authorized Member:</h4>
+            <h4 class="auth-section-title">Add Authorized Member:</h4>
             <form id="form-add-auth" class="admin-inline-form">
-                <input type="number" id="input-add-auth-id" placeholder="Nomor Member (Contoh: 245253)" required>
+                <input type="number" id="input-add-auth-id" placeholder="Member Number (e.g. 245253)" required>
                 <button type="submit" class="btn btn-sm btn-primary">
-                    <span>⭐</span> + Tambah Member
+                    <span>⭐</span> + Add Member
                 </button>
             </form>
-            <p class="admin-note">💡 Authorized Member memiliki akses penuh untuk memerintahkan bot via beep/whisper, kebal dari kick/ban, dan dapat mengontrol bot dari web.</p>
+            <p class="admin-note">💡 Authorized Members have permission to control the bot via in-game beeps/whispers, immunity from kick/ban, and full access to this Web Dashboard.</p>
         </div>
 
-        <!-- Daftar Tampilan Authorized Member -->
+        <!-- Current Authorized Members List -->
         <div class="auth-list-section">
-            <h4 class="auth-section-title">Daftar Authorized Member Saat Ini:</h4>
+            <h4 class="auth-section-title">Current Authorized Members:</h4>
             <div id="authorized-members-list" class="auth-members-grid">
-                <span class="empty-hint">Memuat data authorized member...</span>
+                <span class="empty-hint">Loading authorized members...</span>
             </div>
         </div>
 
-        <!-- Daftar Perintah Khusus untuk Authorized Member -->
+        <!-- Special Commands for Authorized Members -->
         <div class="auth-commands-section">
-            <h4 class="auth-section-title">⚡ Perintah Khusus Authorized Member:</h4>
+            <h4 class="auth-section-title">⚡ Authorized Member Commands:</h4>
             <div class="auth-command-cards">
                 <!-- Command 1: Beep Room Switcher -->
                 <div class="auth-cmd-card">
                     <div class="cmd-header-row">
                         <span class="cmd-badge">📡 In-Game Beep Command</span>
-                        <span class="cmd-syntax-tag">join &lt;ruangan&gt;</span>
+                        <span class="cmd-syntax-tag">join &lt;room&gt;</span>
                     </div>
-                    <p class="cmd-desc">Kirim beep ke Nava (#258115) dari dalam game untuk memerintahkan bot berpindah ruangan. Format: <code>join &lt;Nama Ruangan&gt;</code> atau <code>join Ruangan|password</code>.</p>
+                    <p class="cmd-desc">Send a beep to Nava (#258115) to command the bot to switch rooms. Format: <code>join &lt;Room Name&gt;</code> or <code>join Room|password</code>.</p>
                     
                     <!-- Quick Switch Room Form from Web -->
                     <form id="form-quick-switch-room" class="quick-room-form">
                         <div class="quick-room-inputs">
-                            <input type="text" id="input-quick-room-name" placeholder="Nama Ruangan..." required autocomplete="off">
-                            <input type="text" id="input-quick-room-pass" placeholder="Password (opsional)" autocomplete="off">
+                            <input type="text" id="input-quick-room-name" placeholder="Room Name..." required autocomplete="off">
+                            <input type="text" id="input-quick-room-pass" placeholder="Password (optional)" autocomplete="off">
                         </div>
                         <button type="submit" class="btn btn-sm btn-accent">
-                            <span>🚪</span> Pindahkan Bot
+                            <span>🚪</span> Switch Room
                         </button>
                     </form>
                 </div>
@@ -59,7 +59,7 @@
                         <span class="cmd-badge">🔒 Whisper Command</span>
                         <span class="cmd-syntax-tag">!adminmenu</span>
                     </div>
-                    <p class="cmd-desc">Ketik bisikan <code>!adminmenu</code> ke bot untuk membuka menu bantuan administrasi ruangan secara privat di chat.</p>
+                    <p class="cmd-desc">Whisper <code>!adminmenu</code> to the bot in-game to view private room administration options.</p>
                 </div>
 
                 <!-- Command 3: Room Administration via Whisper -->
@@ -73,17 +73,18 @@
                         <code>!ban &lt;id&gt;</code> | <code>!unban &lt;id&gt;</code> | <code>!banlist</code><br>
                         <code>!kick &lt;id&gt;</code>
                     </div>
-                    <p class="cmd-desc">Kelola administrator ruangan, whitelist, banlist, dan kick member secara instan via bisikan privat.</p>
+                    <p class="cmd-desc">Manage room administrators, whitelist, banlist, and kick members directly via private whisper.</p>
                 </div>
 
                 <!-- Privilege 4: Immunity & Full Web Control -->
                 <div class="auth-cmd-card">
                     <div class="cmd-header-row">
-                        <span class="cmd-badge">🛡️ Privilese & Kekebalan</span>
+                        <span class="cmd-badge">🛡️ Privileges & Immunity</span>
                     </div>
-                    <p class="cmd-desc">Authorized Member memiliki hak kekebalan penuh (tidak dapat di-kick atau di-ban oleh bot) dan hak akses penuh ke seluruh kontrol Web Dashboard.</p>
+                    <p class="cmd-desc">Authorized Members have full immunity from bot moderation actions and unrestricted access to all Web Dashboard controls.</p>
                 </div>
             </div>
         </div>
     </div>
 </section>
+
