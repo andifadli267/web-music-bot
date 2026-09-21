@@ -5,7 +5,7 @@
  * and temporary suspension of public bot features (music, !help) while following.
  */
 
-const { MASTER_ADMINS } = require("../config");
+const { CONFIG, MASTER_ADMINS } = require("../config");
 const { switchRoom } = require("./room");
 const { stopSong, resetQueue } = require("./music");
 const {
@@ -34,6 +34,11 @@ function isFollowMeCommand(content) {
 function isStayHereCommand(content) {
     const clean = cleanCommandString(content);
     return /^nava,?\s*stay\s+here[\.!]?$/i.test(clean);
+}
+
+function isBackToRoomCommand(content) {
+    const clean = cleanCommandString(content);
+    return /^nava,?\s*back\s+to\s+your\s+room[\.!]?$/i.test(clean);
 }
 
 function clearFollowTimer() {
@@ -151,6 +156,47 @@ function stopFollowing(context, state) {
 }
 
 /**
+ * Commands the bot to return to its default configured home room
+ */
+function backToDefaultRoom(context, state) {
+    const { socket, changeFaceExpression, notifyWebRefresh } = context;
+
+    state.isFollowing = false;
+    const prevTarget = state.followingTarget;
+    const prevName = state.followingTargetName || "Mistress";
+    state.followingTarget = null;
+    state.followingTargetName = null;
+    state.isPaused = false;
+
+    clearFollowTimer();
+    isSwitchingRoom = false;
+
+    console.log(`\n👑 [Return Home Commanded] Member #${prevTarget || 'Authorized'} (${prevName}) commanded: "Nava, back to your room"`);
+
+    // 1. Reply in normal room chat
+    sendRoomChat(socket, "Yes Mistress");
+
+    // 2. Respectful & happy expression
+    if (typeof changeFaceExpression === "function") {
+        changeFaceExpression(socket, "Eyes", "Happy");
+        changeFaceExpression(socket, "Blush", "None");
+        changeFaceExpression(socket, "Mouth", "Smile");
+    }
+
+    // 3. Return to default room
+    const defaultRoom = CONFIG.defaultRoom || CONFIG.targetRoom || "V Main Hall";
+    const defaultPassword = CONFIG.defaultPassword || CONFIG.roomPassword || "";
+
+    console.log(`🚪 Returning to default room: "${defaultRoom}"...`);
+    switchRoom(socket, defaultRoom, "", defaultPassword, context);
+
+    // 4. Resume idle animation
+    startVibeAnimation(socket, () => state.isInRoom);
+
+    if (typeof notifyWebRefresh === "function") notifyWebRefresh();
+}
+
+/**
  * Handles AccountQueryResult from game server to detect mistress room transitions
  */
 function handleFollowQueryResult(context, state, data) {
@@ -196,8 +242,11 @@ function handleFollowMemberLeave(context, state, leftMemberNumber) {
 module.exports = {
     isFollowMeCommand,
     isStayHereCommand,
+    isBackToRoomCommand,
     startFollowing,
     stopFollowing,
+    backToDefaultRoom,
     handleFollowQueryResult,
     handleFollowMemberLeave,
 };
+

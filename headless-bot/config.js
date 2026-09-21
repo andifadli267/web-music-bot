@@ -23,7 +23,9 @@ const CONFIG = {
     accountName: process.env.BC_BOT_USERNAME || "Nava1",
     password: process.env.BC_BOT_PASSWORD || "yondaime",
     targetRoom: process.env.BC_TARGET_ROOM || "V Main Hall",
+    defaultRoom: process.env.BC_TARGET_ROOM || "V Main Hall",
     roomPassword: process.env.BC_ROOM_PASSWORD || "",
+    defaultPassword: process.env.BC_ROOM_PASSWORD || "",
     webPort: parseInt(process.env.WEB_PORT, 10) || 3000,
 };
 

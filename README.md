@@ -151,6 +151,7 @@ Natural speech commands spoken in normal room chat by **Authorized Members**:
 | :--- | :--- | :--- |
 | `Nava, follow me` | `"Yes Mistress"` | Activates Follow Mode. Stops current music and pauses public bot features (`!help`, playback). Automatically detects and follows the mistress across rooms. |
 | `Nava, stay here` | `"Yes Mistress"` | Deactivates Follow Mode. Bot stays in the current room and restores full DJ operations (`!help`, music playback). |
+| `Nava, back to your room` | `"Yes Mistress"` | Disengages Follow Mode, restores bot operations, and commands the bot to return to its default configured room. |
 
 ---
 

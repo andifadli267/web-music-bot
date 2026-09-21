@@ -13,8 +13,10 @@ const { handleAdminWhisper } = require("./admin");
 const {
     isFollowMeCommand,
     isStayHereCommand,
+    isBackToRoomCommand,
     startFollowing,
     stopFollowing,
+    backToDefaultRoom,
     handleFollowMemberLeave,
 } = require("../services/follower");
 
@@ -198,6 +200,10 @@ function registerRoomEvents(socket, context, state) {
             }
             if (isStayHereCommand(content)) {
                 stopFollowing(context, state);
+                return;
+            }
+            if (isBackToRoomCommand(content)) {
+                backToDefaultRoom(context, state);
                 return;
             }
         }
