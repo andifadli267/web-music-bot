@@ -15,6 +15,14 @@ function sendRoomEmote(socket, msg) {
     });
 }
 
+function sendRoomChat(socket, msg) {
+    if (!socket || !msg) return;
+    socket.emit("ChatRoomChat", {
+        Content: msg,
+        Type: "Chat",
+    });
+}
+
 function sendWhisper(socket, targetMemberNumber, msg) {
     if (!socket || !targetMemberNumber || !msg) return;
     socket.emit("ChatRoomChat", {
@@ -56,6 +64,7 @@ function stopVibeAnimation() {
 }
 
 module.exports = {
+    sendRoomChat,
     sendRoomEmote,
     sendWhisper,
     changeFaceExpression,

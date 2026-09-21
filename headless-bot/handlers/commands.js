@@ -96,6 +96,11 @@ function getHelpMessage(myName) {
  * Processes chat commands from room members.
  */
 function handleRoomCommand(context, text, sender) {
+    if (context.isPaused) {
+        console.log(`⏸️ [Bot Paused] Chat command "${text}" ignored while bot is following mistress.`);
+        return;
+    }
+
     const { socket, botPlayer, currentRoomData, sendRoomEmote, sendWhisper, changeFaceExpression, getCharacterName } = context;
     const parts = text.split(/\s+/);
     const cmd = parts[0].toLowerCase();

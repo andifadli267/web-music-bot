@@ -25,6 +25,7 @@ const { handleAccountBeep } = require("./handlers/beep");
 const { registerRoomEvents } = require("./handlers/events");
 const { getBotStatus, handleWebAction } = require("./handlers/webActions");
 const { startWebServer, stopWebServer, notifyWebUpdate } = require("./web/server");
+const { handleFollowQueryResult } = require("./services/follower");
 
 const botStartTime = Date.now();
 
@@ -34,6 +35,10 @@ const state = {
     botPlayer: null,
     currentRoomData: null,
     isInRoom: false,
+    isFollowing: false,
+    followingTarget: null,
+    followingTargetName: null,
+    isPaused: false,
     knownCharacters: new Set(),
     characterNames: new Map(),
     getCharacterName(memberNumber) {
@@ -60,6 +65,14 @@ function getContext(socket) {
         get isInRoom() { return state.isInRoom; },
         set isInRoom(val) { state.isInRoom = val; },
         set currentRoomData(val) { state.currentRoomData = val; },
+        get isFollowing() { return state.isFollowing; },
+        set isFollowing(val) { state.isFollowing = val; },
+        get followingTarget() { return state.followingTarget; },
+        set followingTarget(val) { state.followingTarget = val; },
+        get followingTargetName() { return state.followingTargetName; },
+        set followingTargetName(val) { state.followingTargetName = val; },
+        get isPaused() { return state.isPaused; },
+        set isPaused(val) { state.isPaused = val; },
         getCharacterName: state.getCharacterName,
         sendRoomEmote,
         sendWhisper,
@@ -162,13 +175,24 @@ async function startBot() {
         handleAccountBeep(context, data);
     });
 
+    // Account Query listener (tracks friends and mistress room locations for follow mode)
+    socket.on("AccountQueryResult", (data) => {
+        handleFollowQueryResult(context, state, data);
+    });
+
     // Register all in-room events
     registerRoomEvents(socket, context, state);
 
     // Auto-rejoin timer if bot gets disconnected or placed out of room
     setInterval(() => {
         if (state.botPlayer && !state.isInRoom) {
-            joinTargetRoom(socket);
+            if (state.isFollowing && state.followingTarget) {
+                try {
+                    socket.emit("AccountQuery", { Query: "OnlineFriends" });
+                } catch (e) {}
+            } else {
+                joinTargetRoom(socket);
+            }
         }
     }, 12000);
 

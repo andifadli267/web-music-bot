@@ -55,6 +55,10 @@ function getBotStatus(state, botStartTime) {
             isOnline: Boolean(botPlayer) && Boolean(currentSocket && currentSocket.connected),
             friendsCount: botPlayer && Array.isArray(botPlayer.FriendList) ? botPlayer.FriendList.length : 0,
             uptime: Math.floor((Date.now() - (botStartTime || Date.now())) / 1000),
+            isFollowing: Boolean(state.isFollowing),
+            followingTarget: state.followingTarget || null,
+            followingTargetName: state.followingTargetName || null,
+            isPaused: Boolean(state.isPaused),
         },
         room: {
             name: currentRoomData ? currentRoomData.Name : CONFIG.targetRoom,
@@ -90,6 +94,14 @@ async function handleWebAction(context, state, data) {
 
     const { action } = data;
     const { sendRoomEmote, changeFaceExpression, notifyWebRefresh } = context;
+
+    // If bot is paused (following mistress), music actions from web are also suspended
+    if (state.isPaused && ["play", "skip", "stop", "clear", "radio"].includes(action)) {
+        return {
+            success: false,
+            message: "Bot is currently following mistress. Music commands are temporarily paused.",
+        };
+    }
 
     switch (action) {
         case "play":

@@ -4,12 +4,19 @@
  * ChatRoomSync, Member Join/Leave, Chat Messages, Whispers, Room Updates.
  */
 
-const { CONFIG } = require("../config");
+const { CONFIG, MASTER_ADMINS } = require("../config");
 const { clearRetryJoin } = require("../services/room");
 const { startVibeAnimation } = require("../services/vibe");
 const { acceptFriendRequest } = require("../services/friends");
 const { extractCommand, handleRoomCommand } = require("./commands");
 const { handleAdminWhisper } = require("./admin");
+const {
+    isFollowMeCommand,
+    isStayHereCommand,
+    startFollowing,
+    stopFollowing,
+    handleFollowMemberLeave,
+} = require("../services/follower");
 
 function registerRoomEvents(socket, context, state) {
     const {
@@ -39,6 +46,7 @@ function registerRoomEvents(socket, context, state) {
         console.log(`==========================================================\n`);
 
         setTimeout(() => {
+            if (state.isPaused) return;
             const myName = state.botPlayer ? (state.botPlayer.Name || CONFIG.accountName) : CONFIG.accountName;
             const welcomeMsg = `🎵 [${myName} Music] Ready to play synced music in ${data.Name}! Type !help to see commands & radio genres 🎧`;
             charList.forEach(c => {
@@ -66,7 +74,9 @@ function registerRoomEvents(socket, context, state) {
         });
 
         if (typeof notifyWebRefresh === "function") notifyWebRefresh();
-        startVibeAnimation(socket, () => state.isInRoom);
+        if (!state.isPaused) {
+            startVibeAnimation(socket, () => state.isInRoom);
+        }
     });
 
     // Greet players via whisper when they join or re-join the room
@@ -91,6 +101,7 @@ function registerRoomEvents(socket, context, state) {
         if (!state.knownCharacters.has(memberNum)) {
             state.knownCharacters.add(memberNum);
             setTimeout(() => {
+                if (state.isPaused) return;
                 const stillInRoom = state.currentRoomData && Array.isArray(state.currentRoomData.Character)
                     ? state.currentRoomData.Character.some(c => c.MemberNumber === memberNum)
                     : true;
@@ -120,6 +131,7 @@ function registerRoomEvents(socket, context, state) {
                 state.currentRoomData.Character = state.currentRoomData.Character.filter(c => c.MemberNumber !== num);
             }
             console.log(`👋 [Room Leave] Member #${num} (${state.characterNames.get(num) || "Player"}) left the room.`);
+            handleFollowMemberLeave(context, state, num);
         }
         if (typeof notifyWebRefresh === "function") notifyWebRefresh();
     });
@@ -164,6 +176,7 @@ function registerRoomEvents(socket, context, state) {
                     state.currentRoomData.Character = state.currentRoomData.Character.filter(c => c.MemberNumber !== num);
                 }
                 console.log(`👋 [ServerLeave Action] Member #${num} left the room.`);
+                handleFollowMemberLeave(context, state, num);
             }
             if (typeof notifyWebRefresh === "function") notifyWebRefresh();
             return;
@@ -171,6 +184,22 @@ function registerRoomEvents(socket, context, state) {
 
         if (sender && !state.knownCharacters.has(sender)) {
             state.knownCharacters.add(sender);
+        }
+
+        // Check for "Nava, follow me" and "Nava, stay here" from Authorized Members in normal chat
+        const senderId = Number(sender);
+        const isMaster = MASTER_ADMINS.has(senderId);
+        const isNormalChat = !data.Type || data.Type === "Chat" || data.Type === "Normal";
+
+        if (isMaster && isNormalChat) {
+            if (isFollowMeCommand(content)) {
+                startFollowing(context, state, senderId, getCharacterName(senderId));
+                return;
+            }
+            if (isStayHereCommand(content)) {
+                stopFollowing(context, state);
+                return;
+            }
         }
 
         // Native BC in-room friend request
@@ -206,6 +235,11 @@ function registerRoomEvents(socket, context, state) {
         const isInternalAddon = /^(ECHO_|PCM_|CG_|BCEMsg|BCXMsg|KIKILINK|Liko)/.test(content);
         if (!isInternalAddon) {
             console.log(`💬 [${getCharacterName(sender)} (#${sender})]: "${content}"`);
+        }
+
+        // If bot is paused (e.g. following mistress), public bot commands (!help, !play, etc.) are suspended
+        if (state.isPaused) {
+            return;
         }
 
         const cmdText = extractCommand(content);

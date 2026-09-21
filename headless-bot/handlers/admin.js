@@ -284,6 +284,13 @@ async function handleAdminWhisper(context, rawText, sender) {
     const cmd = rawCmd.startsWith("!") ? rawCmd : `!${rawCmd}`;
     const arg = parts[1] || "";
 
+    // If bot is paused (e.g. following mistress), music commands and !help are suspended
+    const isMusicOrHelpCmd = /^(?:!help|!music|!play|!yt|!skip|!next|!stop|!clear|!queue|!q|!radio|!np)$/i.test(cmd);
+    if (context.isPaused && isMusicOrHelpCmd) {
+        console.log(`⏸️ [Bot Paused] Whisper command "${cmd}" ignored while bot is following mistress.`);
+        return;
+    }
+
     // 1. HELP COMMAND VIA WHISPER - Available to EVERYONE (Both regular members & admins)
     if (cmd === "!help" || cmd === "!music") {
         sendWhisper(socket, senderId, getHelpMessage(myName));

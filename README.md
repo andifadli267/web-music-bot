@@ -143,6 +143,15 @@ Commands can be typed in **Room Chat** or sent via **Private Whisper (Beep)** to
 | `!kick <id>` | `!kick 12345` | Room Admin | Kicks a member out of the private room. |
 | `!ban <id>` | `!ban 12345` | Room Admin | Adds a member to the room banlist. |
 
+### 👑 Authorized Companion & Follower Commands
+
+Natural speech commands spoken in normal room chat by **Authorized Members**:
+
+| Spoken Chat Command | Bot Reply | Behavior Description |
+| :--- | :--- | :--- |
+| `Nava, follow me` | `"Yes Mistress"` | Activates Follow Mode. Stops current music and pauses public bot features (`!help`, playback). Automatically detects and follows the mistress across rooms. |
+| `Nava, stay here` | `"Yes Mistress"` | Deactivates Follow Mode. Bot stays in the current room and restores full DJ operations (`!help`, music playback). |
+
 ---
 
 ## 🛠️ Setup & Installation
