@@ -195,6 +195,17 @@ node bot.js
 3. Ensure the bot's Member Number (e.g. `#258115`) is added to the room's **Whitelist** or **Admin** list so it can enter freely.
 4. Open **`http://localhost:3000`** in your browser to view the live dashboard!
 
+### Step 5: Share Dashboard Online (Optional)
+To let others view and interact with your local dashboard over the internet without exposing your IP address:
+```bash
+# Run the sharing script:
+share-web.bat
+
+# Or directly with Cloudflare Tunnel:
+cloudflared tunnel --url http://localhost:3000
+```
+This generates a secure, temporary HTTPS link (e.g., `https://xxxx.trycloudflare.com`) that you can share with friends.
+
 ---
 
 <div align="center">
