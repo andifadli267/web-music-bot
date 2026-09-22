@@ -2,25 +2,25 @@
 <div id="bot-offline-overlay" class="offline-overlay hidden">
     <div class="offline-modal">
         <div class="offline-icon">🔌</div>
-        <h2 class="offline-title">Bot Offline / Inactive</h2>
-        <p class="offline-desc">The dashboard and remote controls are active only when bot Nava is online and inside a game room.</p>
+        <h2 class="offline-title" data-i18n="offline_modal_title">Bot Offline / Inactive</h2>
+        <p class="offline-desc" data-i18n="offline_modal_desc">The dashboard and remote controls are active only when bot Nava is online and inside a game room.</p>
         <div class="offline-status-details">
             <div class="offline-step">
-                <span class="step-label">🌐 Web Server:</span>
-                <strong class="step-val text-success">Online (Port 3000)</strong>
+                <span class="step-label" data-i18n="offline_step_web">🌐 Web Server:</span>
+                <strong class="step-val text-success" data-i18n="offline_val_server_on">Online (Port 3000)</strong>
             </div>
             <div class="offline-step">
-                <span class="step-label">🤖 Bot Status:</span>
+                <span class="step-label" data-i18n="offline_step_bot">🤖 Bot Status:</span>
                 <strong id="overlay-bot-status" class="step-val text-danger">Disconnected</strong>
             </div>
             <div class="offline-step">
-                <span class="step-label">🚪 Room Status:</span>
+                <span class="step-label" data-i18n="offline_step_room">🚪 Room Status:</span>
                 <strong id="overlay-room-status" class="step-val text-warning">Outside Room</strong>
             </div>
         </div>
         <div class="offline-pulse">
             <span class="pulse-spinner"></span>
-            <span>Attempting automatic reconnection...</span>
+            <span data-i18n="offline_reconnecting">Attempting automatic reconnection...</span>
         </div>
     </div>
 </div>

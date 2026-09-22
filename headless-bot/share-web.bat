@@ -35,3 +35,4 @@ if not "%CLOUDFLARED_CMD%"=="" (
 )
 
 pause
+

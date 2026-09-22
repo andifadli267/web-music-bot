@@ -8,7 +8,8 @@ const API_ACTION_URL = "/api/action";
 
 async function sendBotAction(action, payload = {}) {
     if (typeof isBotActiveState !== "undefined" && !isBotActiveState) {
-        showToast("Bot is offline or not currently inside a room. Action cancelled.", "error");
+        const offMsg = typeof t === "function" ? t("toast_bot_offline_action") : "Bot is offline or not currently inside a room. Action cancelled.";
+        showToast(offMsg, "error");
         return { success: false, error: "Bot offline" };
     }
 
@@ -26,7 +27,8 @@ async function sendBotAction(action, payload = {}) {
             return data;
         }
 
-        showToast(data.message || "Action sent to bot successfully.", "success");
+        const succMsg = data.message || (typeof t === "function" ? t("toast_action_success") : "Action sent to bot successfully.");
+        showToast(succMsg, "success");
         if (typeof fetchStatus === "function") {
             fetchStatus();
         }

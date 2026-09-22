@@ -4,8 +4,11 @@
  * and initializes real-time SSE stream.
  */
 
+let lastDashboardData = null;
+
 function updateDashboard(data) {
     if (!data) return;
+    lastDashboardData = data;
 
     const isOnline = data.bot && data.bot.isOnline;
     const isInRoom = data.room && data.room.isInRoom;
@@ -14,7 +17,7 @@ function updateDashboard(data) {
     setOfflineState(isOnline, isInRoom);
 
     // 2. Update Room Information
-    const roomName = (data.room && data.room.name) ? data.room.name : (data.bot ? data.bot.targetRoom : "Not In Room");
+    const roomName = (data.room && data.room.name) ? data.room.name : (data.bot ? data.bot.targetRoom : (typeof t === "function" ? t("status_outside") : "Not In Room"));
     const headerRoomEl = document.getElementById("header-room-name");
     const metaRoomEl = document.getElementById("meta-room-name");
     const metaBotNameEl = document.getElementById("meta-bot-name");
@@ -26,7 +29,10 @@ function updateDashboard(data) {
 
     if (data.bot) {
         if (metaBotNameEl) metaBotNameEl.textContent = `${data.bot.name || "Nava"} (#${data.bot.memberNumber || "258115"})`;
-        if (metaFriendsEl) metaFriendsEl.textContent = `${data.bot.friendsCount || 0} Friends`;
+        if (metaFriendsEl) {
+            const friendsLabel = typeof t === "function" ? t("label_friends_count") : "Friends";
+            metaFriendsEl.textContent = `${data.bot.friendsCount || 0} ${friendsLabel}`;
+        }
     }
 
     // Room Players List
@@ -34,7 +40,10 @@ function updateDashboard(data) {
     const players = (data.room && Array.isArray(data.room.players)) ? data.room.players : [];
     const admins = (data.room && Array.isArray(data.room.admins)) ? data.room.admins : [];
 
-    if (memberCountBadge) memberCountBadge.textContent = `${players.length} Players`;
+    if (memberCountBadge) {
+        const pSuffix = typeof t === "function" ? t("players_count_suffix") : "Players";
+        memberCountBadge.textContent = `${players.length} ${pSuffix}`;
+    }
 
     if (playersListEl) {
         if (players.length > 0) {
@@ -59,7 +68,8 @@ function updateDashboard(data) {
                 </span>`;
             }).join("");
         } else {
-            playersListEl.innerHTML = `<span class="player-tag empty-tag">Bot is waiting in the room, no other players present.</span>`;
+            const emptyHint = typeof t === "function" ? t("players_empty_hint") : "Bot is waiting in the room, no other players present.";
+            playersListEl.innerHTML = `<span class="player-tag empty-tag">${emptyHint}</span>`;
         }
     }
 
@@ -78,6 +88,7 @@ function updateDashboard(data) {
             queueListEl.innerHTML = queue.map((item, idx) => {
                 const req = item.requesterName || (item.requestedBy ? `Member #${item.requestedBy}` : "DJ");
                 const dur = item.duration ? formatTime(item.duration) : "Audio";
+                const reqByLabel = typeof t === "function" ? t("queue_req_by") : "Req by:";
 
                 return `
                     <div class="queue-item">
@@ -86,18 +97,20 @@ function updateDashboard(data) {
                             <div class="queue-title">${escapeHtml(item.title)}</div>
                             <div class="queue-meta">
                                 <span class="queue-dur">⏱️ ${dur}</span>
-                                <span class="queue-req">👤 Req by: <strong>${escapeHtml(req)}</strong></span>
+                                <span class="queue-req">👤 ${reqByLabel} <strong>${escapeHtml(req)}</strong></span>
                             </div>
                         </div>
                     </div>
                 `;
             }).join("");
         } else {
+            const emptyTitle = typeof t === "function" ? t("queue_empty_title") : "Queue is Empty";
+            const emptyDesc = typeof t === "function" ? t("queue_empty_desc") : "Use the player form or type !play title in room chat to queue a track.";
             queueListEl.innerHTML = `
                 <div class="queue-empty">
                     <div class="empty-icon">☕</div>
-                    <h3>Queue is Empty</h3>
-                    <p>Use the player form or type <code>!play title</code> in room chat to queue a track.</p>
+                    <h3>${emptyTitle}</h3>
+                    <p>${emptyDesc}</p>
                 </div>
             `;
         }
@@ -110,8 +123,20 @@ function updateDashboard(data) {
     updateAuthorizedMembers(data);
 }
 
+// Global callback for i18n re-rendering
+window.refreshDynamicI18n = function() {
+    if (lastDashboardData) {
+        updateDashboard(lastDashboardData);
+    }
+};
+
 // Setup Event Listeners on DOM Ready
 document.addEventListener("DOMContentLoaded", () => {
+    // 0. Initialize Internationalization (i18n)
+    if (typeof initI18n === "function") {
+        initI18n();
+    }
+
     // 1. Play Song Form
     const formPlay = document.getElementById("form-play");
     const inputQuery = document.getElementById("input-query");
@@ -124,7 +149,8 @@ document.addEventListener("DOMContentLoaded", () => {
             const requester = (inputRequester.value || "").trim() || "Web DJ";
             if (!query) return;
 
-            showToast(`Processing track request: "${query}"...`, "info");
+            const msg = typeof t === "function" ? t("toast_processing_req", { query }) : `Processing track request: "${query}"...`;
+            showToast(msg, "info");
             await sendBotAction("play", { query, requester });
             inputQuery.value = "";
         });
@@ -141,7 +167,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const btnStop = document.getElementById("btn-action-stop");
     if (btnStop) {
         btnStop.addEventListener("click", () => {
-            if (!confirm("Stop music playback in the room?")) return;
+            const confirmMsg = typeof t === "function" ? t("confirm_stop_music") : "Stop music playback in the room?";
+            if (!confirm(confirmMsg)) return;
             sendBotAction("stop", { requester: "Web User" });
         });
     }
@@ -149,7 +176,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const btnClear = document.getElementById("btn-action-clear");
     if (btnClear) {
         btnClear.addEventListener("click", () => {
-            if (!confirm("Clear the entire music queue?")) return;
+            const confirmMsg = typeof t === "function" ? t("confirm_clear_queue") : "Clear the entire music queue?";
+            if (!confirm(confirmMsg)) return;
             sendBotAction("clear", { requester: "Web User" });
         });
     }
@@ -248,7 +276,8 @@ document.addEventListener("DOMContentLoaded", () => {
             const input = document.getElementById("input-kick-id");
             const memberNumber = parseInt(input.value, 10);
             if (memberNumber) {
-                if (!confirm(`Kick Member #${memberNumber} from the room?`)) return;
+                const confirmMsg = typeof t === "function" ? t("confirm_kick", { id: memberNumber }) : `Kick Member #${memberNumber} from the room?`;
+                if (!confirm(confirmMsg)) return;
                 sendBotAction("admin", { subAction: "kick", memberNumber });
                 input.value = "";
             }
@@ -282,7 +311,8 @@ document.addEventListener("DOMContentLoaded", () => {
             const roomName = (document.getElementById("input-quick-room-name").value || "").trim();
             const password = (document.getElementById("input-quick-room-pass").value || "").trim();
             if (!roomName) return;
-            showToast(`Commanding bot to join "${roomName}"...`, "info");
+            const switchMsg = typeof t === "function" ? t("toast_commanding_switch", { room: roomName }) : `Commanding bot to join "${roomName}"...`;
+            showToast(switchMsg, "info");
             await sendBotAction("authorizedMember", { subAction: "switchRoom", roomName, password });
             document.getElementById("input-quick-room-name").value = "";
             document.getElementById("input-quick-room-pass").value = "";

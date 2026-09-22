@@ -23,9 +23,9 @@ function updatePlayerUI(playback) {
     if (playback.currentTrack) {
         const track = playback.currentTrack;
         if (trackTitleEl) trackTitleEl.textContent = track.title || "Unknown Track";
-        if (trackSubEl) trackSubEl.textContent = "Playing synchronized for all players in room";
+        if (trackSubEl) trackSubEl.textContent = (typeof t === "function") ? t("playing_synchronized") : "Playing synchronized for all players in room";
         if (sourceBadgeEl) {
-            sourceBadgeEl.textContent = "YouTube Audio";
+            sourceBadgeEl.textContent = (typeof t === "function") ? t("badge_yt") : "YouTube Audio";
             sourceBadgeEl.style.display = "inline-block";
         }
 
@@ -51,7 +51,7 @@ function updatePlayerUI(playback) {
         } else {
             if (progressBarFill) progressBarFill.style.width = "100%";
             if (timeCurrentEl) timeCurrentEl.textContent = formatTime(elapsed);
-            if (timeTotalEl) timeTotalEl.textContent = "Live";
+            if (timeTotalEl) timeTotalEl.textContent = (typeof t === "function") ? t("live_stream") : "Live";
         }
 
         // Sync Audio Source if user requested local browser listening
@@ -67,9 +67,9 @@ function updatePlayerUI(playback) {
     } else if (playback.currentStation) {
         const st = playback.currentStation;
         if (trackTitleEl) trackTitleEl.textContent = st.name || "Live Radio";
-        if (trackSubEl) trackSubEl.textContent = "24/7 Radio Station (Online Stream)";
+        if (trackSubEl) trackSubEl.textContent = (typeof t === "function") ? t("radio_playing_sub") : "24/7 Radio Station (Online Stream)";
         if (sourceBadgeEl) {
-            sourceBadgeEl.textContent = "24/7 Radio";
+            sourceBadgeEl.textContent = (typeof t === "function") ? t("badge_radio") : "24/7 Radio";
             sourceBadgeEl.style.display = "inline-block";
         }
 
@@ -80,8 +80,8 @@ function updatePlayerUI(playback) {
         if (vinylIconEl) vinylIconEl.textContent = "📻";
 
         if (progressBarFill) progressBarFill.style.width = "100%";
-        if (timeCurrentEl) timeCurrentEl.textContent = "LIVE";
-        if (timeTotalEl) timeTotalEl.textContent = "24/7";
+        if (timeCurrentEl) timeCurrentEl.textContent = (typeof t === "function") ? t("live_stream") : "LIVE";
+        if (timeTotalEl) timeTotalEl.textContent = (typeof t === "function") ? t("live_247") : "24/7";
 
         if (webAudio && st.url && webAudio.src !== st.url) {
             webAudio.src = st.url;
@@ -91,8 +91,8 @@ function updatePlayerUI(playback) {
         }
     } else {
         // Idle
-        if (trackTitleEl) trackTitleEl.textContent = "No music currently playing";
-        if (trackSubEl) trackSubEl.textContent = "Use the player form below or type !play in room chat";
+        if (trackTitleEl) trackTitleEl.textContent = (typeof t === "function") ? t("no_music_title") : "No music currently playing";
+        if (trackSubEl) trackSubEl.textContent = (typeof t === "function") ? t("no_music_sub") : "Use the player form below or type !play in room chat";
         if (sourceBadgeEl) sourceBadgeEl.style.display = "none";
         if (requesterBoxEl) requesterBoxEl.style.display = "none";
 
@@ -123,19 +123,20 @@ function toggleLocalAudioListen() {
                 localAudioPlaying = true;
                 btnListen.classList.add("playing");
                 if (listenIcon) listenIcon.textContent = "⏸️";
-                if (listenText) listenText.textContent = "Stop Audio";
+                if (listenText) listenText.textContent = (typeof t === "function") ? t("stop_browser") : "Stop Audio";
             }).catch(err => {
-                showToast("Unable to play audio: " + err.message, "error");
+                const prefix = (typeof t === "function") ? t("toast_audio_error") : "Unable to play audio:";
+                showToast(`${prefix} ${err.message}`, "error");
             });
         } else {
-            showToast("No audio is currently playing in the room.", "info");
+            showToast((typeof t === "function") ? t("toast_no_audio") : "No audio is currently playing in the room.", "info");
         }
     } else {
         webAudio.pause();
         localAudioPlaying = false;
         btnListen.classList.remove("playing");
         if (listenIcon) listenIcon.textContent = "🔊";
-        if (listenText) listenText.textContent = "Listen in Browser";
+        if (listenText) listenText.textContent = (typeof t === "function") ? t("listen_browser") : "Listen in Browser";
     }
 }
 

@@ -3,30 +3,30 @@
     <div class="card-header">
         <div class="header-tag">
             <span>🔒</span>
-            <span>ROOM ADMINISTRATION</span>
+            <span data-i18n="room_admin_tag">ROOM ADMINISTRATION</span>
         </div>
-        <span class="badge badge-admin">Room Admin</span>
+        <span class="badge badge-admin" data-i18n="badge_room_admin">Room Admin</span>
     </div>
 
     <!-- Admin Tabs -->
     <div class="admin-tabs">
-        <button class="tab-btn active" data-tab="tab-admins">👑 Admin</button>
-        <button class="tab-btn" data-tab="tab-whitelist">📜 Whitelist</button>
-        <button class="tab-btn" data-tab="tab-ban">🚫 Banlist</button>
-        <button class="tab-btn" data-tab="tab-kick">👢 Kick</button>
+        <button class="tab-btn active" data-tab="tab-admins" data-i18n="tab_admin">👑 Admin</button>
+        <button class="tab-btn" data-tab="tab-whitelist" data-i18n="tab_whitelist">📜 Whitelist</button>
+        <button class="tab-btn" data-tab="tab-ban" data-i18n="tab_banlist">🚫 Banlist</button>
+        <button class="tab-btn" data-tab="tab-kick" data-i18n="tab_kick">👢 Kick</button>
     </div>
 
     <div class="admin-tab-content">
         <!-- Tab: Admins -->
         <div id="tab-admins" class="tab-pane active">
             <form id="form-add-admin" class="admin-inline-form">
-                <input type="number" id="input-add-admin-id" placeholder="Member Number (e.g. 245253)" required>
-                <button type="submit" class="btn btn-sm btn-primary">+ Add Admin</button>
+                <input type="number" id="input-add-admin-id" placeholder="Member Number (e.g. 245253)" data-i18n-placeholder="placeholder_member_id" required>
+                <button type="submit" class="btn btn-sm btn-primary" data-i18n="btn_add_admin">+ Add Admin</button>
             </form>
             <div class="admin-list-container">
-                <h5>Room Administrators List:</h5>
+                <h5 data-i18n="admin_list_title">Room Administrators List:</h5>
                 <div id="room-admins-list" class="badge-list">
-                    <span class="empty-hint">No admin data found.</span>
+                    <span class="empty-hint" data-i18n="admin_list_empty">No administrators registered.</span>
                 </div>
             </div>
         </div>
@@ -34,13 +34,13 @@
         <!-- Tab: Whitelist -->
         <div id="tab-whitelist" class="tab-pane">
             <form id="form-add-wl" class="admin-inline-form">
-                <input type="number" id="input-add-wl-id" placeholder="Member Number (e.g. 254143)" required>
-                <button type="submit" class="btn btn-sm btn-accent">+ Add to Whitelist</button>
+                <input type="number" id="input-add-wl-id" placeholder="Member Number (e.g. 254143)" data-i18n-placeholder="placeholder_member_id" required>
+                <button type="submit" class="btn btn-sm btn-accent" data-i18n="btn_add_whitelist">+ Add to Whitelist</button>
             </form>
             <div class="admin-list-container">
-                <h5>Whitelist Members:</h5>
+                <h5 data-i18n="wl_list_title">Whitelist Members:</h5>
                 <div id="room-whitelist-list" class="badge-list">
-                    <span class="empty-hint">Whitelist is empty (public access open).</span>
+                    <span class="empty-hint" data-i18n="wl_list_empty">Whitelist is empty (public access open).</span>
                 </div>
             </div>
         </div>
@@ -48,13 +48,13 @@
         <!-- Tab: Banlist -->
         <div id="tab-ban" class="tab-pane">
             <form id="form-add-ban" class="admin-inline-form">
-                <input type="number" id="input-add-ban-id" placeholder="Member Number (e.g. 12345)" required>
-                <button type="submit" class="btn btn-sm btn-danger">+ Ban Member</button>
+                <input type="number" id="input-add-ban-id" placeholder="Member Number (e.g. 12345)" data-i18n-placeholder="placeholder_member_id" required>
+                <button type="submit" class="btn btn-sm btn-danger" data-i18n="btn_ban_member">+ Ban Member</button>
             </form>
             <div class="admin-list-container">
-                <h5>Banned Members List:</h5>
+                <h5 data-i18n="ban_list_title">Banned Members List:</h5>
                 <div id="room-ban-list" class="badge-list">
-                    <span class="empty-hint">No banned members.</span>
+                    <span class="empty-hint" data-i18n="ban_list_empty">No banned members.</span>
                 </div>
             </div>
         </div>
@@ -62,10 +62,10 @@
         <!-- Tab: Kick -->
         <div id="tab-kick" class="tab-pane">
             <form id="form-kick" class="admin-inline-form">
-                <input type="number" id="input-kick-id" placeholder="Member Number to kick..." required>
-                <button type="submit" class="btn btn-sm btn-danger">👢 Kick from Room</button>
+                <input type="number" id="input-kick-id" placeholder="Member Number to kick..." data-i18n-placeholder="placeholder_kick_id" required>
+                <button type="submit" class="btn btn-sm btn-danger" data-i18n="btn_kick_member">👢 Kick from Room</button>
             </form>
-            <p class="admin-note">⚠️ Kicked players will be immediately removed from the room.</p>
+            <p class="admin-note" data-i18n="kick_note">⚠️ Kicked players will be immediately removed from the room.</p>
         </div>
     </div>
 </section>

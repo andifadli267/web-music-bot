@@ -3,36 +3,36 @@
     <div class="card-header">
         <div class="header-tag">
             <span>💬</span>
-            <span>ROOM INTERACTION & BOT EXPRESSIONS</span>
+            <span data-i18n="chat_tag">ROOM INTERACTION & BOT EXPRESSIONS</span>
         </div>
-        <span class="badge badge-accent">Live Comms</span>
+        <span class="badge badge-accent" data-i18n="badge_live_comms">Live Comms</span>
     </div>
 
     <div class="chat-body">
         <!-- Say to Room Form -->
         <form id="form-chat" class="chat-form">
             <div class="chat-input-row">
-                <input type="text" id="input-chat-msg" placeholder="Type a message for Nava to say in the room..." required autocomplete="off">
+                <input type="text" id="input-chat-msg" placeholder="Type a message for Nava to say in the room..." data-i18n-placeholder="placeholder_chat_msg" required autocomplete="off">
                 <select id="select-chat-type" class="chat-type-select">
-                    <option value="Emote">Emote Message (*)</option>
-                    <option value="Chat">Normal Chat</option>
+                    <option value="Emote" data-i18n="option_emote">Emote Message (*)</option>
+                    <option value="Chat" data-i18n="option_chat">Normal Chat</option>
                 </select>
                 <button type="submit" id="btn-submit-chat" class="btn btn-accent">
-                    <span>💬</span> Send
+                    <span>💬</span> <span data-i18n="btn_send_chat">Send</span>
                 </button>
             </div>
         </form>
 
         <!-- Facial Expression Quick Controls -->
         <div class="expression-section">
-            <span class="expr-label">Bot Facial Expressions:</span>
+            <span class="expr-label" data-i18n="expr_label">Bot Facial Expressions:</span>
             <div class="expr-buttons">
-                <button class="btn-expr" data-group="Eyes" data-expr="Happy">😊 Happy</button>
-                <button class="btn-expr" data-group="Eyes" data-expr="Wink">😉 Wink</button>
-                <button class="btn-expr" data-group="Mouth" data-expr="Sing">🎶 Sing</button>
-                <button class="btn-expr" data-group="Eyes" data-expr="Thinking">🤔 Thinking</button>
-                <button class="btn-expr" data-group="Eyes" data-expr="Blush">😳 Blush</button>
-                <button class="btn-expr" data-group="Eyes" data-expr="Closed">😌 Closed</button>
+                <button class="btn-expr" data-group="Eyes" data-expr="Happy" data-i18n="expr_happy">😊 Happy</button>
+                <button class="btn-expr" data-group="Eyes" data-expr="Wink" data-i18n="expr_wink">😉 Wink</button>
+                <button class="btn-expr" data-group="Mouth" data-expr="Sing" data-i18n="expr_sing">🎶 Sing</button>
+                <button class="btn-expr" data-group="Eyes" data-expr="Thinking" data-i18n="expr_thinking">🤔 Thinking</button>
+                <button class="btn-expr" data-group="Eyes" data-expr="Blush" data-i18n="expr_blush">😳 Blush</button>
+                <button class="btn-expr" data-group="Eyes" data-expr="Closed" data-i18n="expr_closed">😌 Closed</button>
             </div>
         </div>
     </div>

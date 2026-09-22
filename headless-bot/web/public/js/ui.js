@@ -70,7 +70,7 @@ function setOfflineState(isOnline, isInRoom, customMsg = "") {
     if (isBotActiveState) {
         if (overlay) overlay.classList.add("hidden");
         if (botIndicator) botIndicator.style.backgroundColor = "var(--success)";
-        if (botText) botText.textContent = "Online";
+        if (botText) botText.textContent = (typeof t === "function") ? t("status_online") : "Online";
         if (headerLiveDot) headerLiveDot.style.backgroundColor = "var(--success)";
 
         interactiveElements.forEach(el => {
@@ -79,15 +79,21 @@ function setOfflineState(isOnline, isInRoom, customMsg = "") {
     } else {
         if (overlay) overlay.classList.remove("hidden");
         if (botIndicator) botIndicator.style.backgroundColor = "var(--danger)";
-        if (botText) botText.textContent = isOnline ? "Outside Room" : "Offline";
+        const outsideText = (typeof t === "function") ? t("status_outside") : "Outside Room";
+        const offlineText = (typeof t === "function") ? t("status_offline") : "Offline";
+        if (botText) botText.textContent = isOnline ? outsideText : offlineText;
         if (headerLiveDot) headerLiveDot.style.backgroundColor = "var(--danger)";
 
         if (overlayBotStatus) {
-            overlayBotStatus.textContent = isOnline ? "Connected to Game" : "Disconnected / Offline";
+            const connText = (typeof t === "function") ? t("offline_val_bot_conn") : "Connected to Game";
+            const disconnText = (typeof t === "function") ? t("offline_val_bot_disconn") : "Disconnected / Offline";
+            overlayBotStatus.textContent = isOnline ? connText : disconnText;
             overlayBotStatus.className = `step-val ${isOnline ? "text-success" : "text-danger"}`;
         }
         if (overlayRoomStatus) {
-            overlayRoomStatus.textContent = isInRoom ? "Inside Room" : (customMsg || "Not Joined to Room");
+            const inRoomText = (typeof t === "function") ? t("offline_val_in_room") : "Inside Room";
+            const outRoomText = (typeof t === "function") ? t("offline_val_out_room") : "Not Joined to Room";
+            overlayRoomStatus.textContent = isInRoom ? inRoomText : (customMsg || outRoomText);
             overlayRoomStatus.className = `step-val ${isInRoom ? "text-success" : "text-warning"}`;
         }
 
@@ -115,7 +121,8 @@ function initThemeToggle() {
         const nextTheme = currentTheme === "dark" ? "light" : "dark";
         applyTheme(nextTheme);
         localStorage.setItem("nava_theme", nextTheme);
-        showToast(`Theme switched to ${nextTheme === "dark" ? "Dark Mode" : "Light Mode"}`, "info");
+        const prefix = (typeof t === "function") ? t("toast_theme_switched") : "Theme switched to";
+        showToast(`${prefix} ${nextTheme === "dark" ? "Dark Mode" : "Light Mode"}`, "info");
     });
 
     function applyTheme(theme) {

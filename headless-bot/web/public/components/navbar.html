@@ -6,21 +6,28 @@
         </div>
         <div>
             <h1 class="brand-title">Nava Music <span class="brand-badge">DJ BOT</span></h1>
-            <p class="brand-sub">Bondage Club Synchronized Room Audio & Remote Control</p>
+            <p class="brand-sub" data-i18n="brand_subtitle">Bondage Club Synchronized Room Audio & Remote Control</p>
         </div>
     </div>
 
     <div class="nav-status">
         <div class="room-pill">
             <span class="live-dot" id="header-live-dot"></span>
-            <span class="room-label">Room:</span>
-            <strong id="header-room-name" class="room-name">Connecting...</strong>
+            <span class="room-label" data-i18n="room_label">Room:</span>
+            <strong id="header-room-name" class="room-name" data-i18n="connecting">Connecting...</strong>
         </div>
         <div class="bot-status-pill">
             <span id="bot-status-indicator" class="status-indicator"></span>
-            <span id="bot-status-text">Online</span>
+            <span id="bot-status-text" data-i18n="status_online">Online</span>
         </div>
-        <button id="theme-toggle" class="theme-toggle-btn" aria-label="Toggle light or dark theme" title="Toggle Light / Dark Theme">
+        <div class="lang-select-wrapper">
+            <select id="lang-select" class="lang-select" aria-label="Select Interface Language" data-i18n-title="lang_select_title" data-i18n-aria="lang_select_title">
+                <option value="en">🇬🇧 EN</option>
+                <option value="id">🇮🇩 ID</option>
+                <option value="it">🇮🇹 IT</option>
+            </select>
+        </div>
+        <button id="theme-toggle" class="theme-toggle-btn" aria-label="Toggle light or dark theme" data-i18n-title="theme_toggle_title" data-i18n-aria="theme_toggle_title">
             <span class="theme-icon" id="theme-icon">🌙</span>
         </button>
     </div>

@@ -3,7 +3,7 @@
     <div class="card-header">
         <div class="header-tag">
             <span>⭐</span>
-            <span>AUTHORIZED MEMBERS & COMMANDS</span>
+            <span data-i18n="auth_tag">AUTHORIZED MEMBERS & COMMANDS</span>
         </div>
         <span id="auth-count-badge" class="badge badge-accent">2 Members</span>
     </div>
@@ -11,44 +11,44 @@
     <div class="authorized-body">
         <!-- Add Authorized Member Form -->
         <div class="auth-add-section">
-            <h4 class="auth-section-title">Add Authorized Member:</h4>
+            <h4 class="auth-section-title" data-i18n="auth_add_title">Add Authorized Member:</h4>
             <form id="form-add-auth" class="admin-inline-form">
-                <input type="number" id="input-add-auth-id" placeholder="Member Number (e.g. 245253)" required>
+                <input type="number" id="input-add-auth-id" placeholder="Member Number (e.g. 245253)" data-i18n-placeholder="placeholder_member_id" required>
                 <button type="submit" class="btn btn-sm btn-primary">
-                    <span>⭐</span> + Add Member
+                    <span>⭐</span> <span data-i18n="btn_add_auth">+ Add Member</span>
                 </button>
             </form>
-            <p class="admin-note">💡 Authorized Members have permission to control the bot via in-game beeps/whispers, immunity from kick/ban, and full access to this Web Dashboard.</p>
+            <p class="admin-note" data-i18n="auth_note">💡 Authorized Members have permission to control the bot via in-game beeps/whispers, immunity from kick/ban, and full access to this Web Dashboard.</p>
         </div>
 
         <!-- Current Authorized Members List -->
         <div class="auth-list-section">
-            <h4 class="auth-section-title">Current Authorized Members:</h4>
+            <h4 class="auth-section-title" data-i18n="auth_list_title">Current Authorized Members:</h4>
             <div id="authorized-members-list" class="auth-members-grid">
-                <span class="empty-hint">Loading authorized members...</span>
+                <span class="empty-hint" data-i18n="auth_empty_hint">Loading authorized members...</span>
             </div>
         </div>
 
         <!-- Special Commands for Authorized Members -->
         <div class="auth-commands-section">
-            <h4 class="auth-section-title">⚡ Authorized Member Commands:</h4>
+            <h4 class="auth-section-title" data-i18n="auth_commands_title">⚡ Authorized Member Commands:</h4>
             <div class="auth-command-cards">
                 <!-- Command 1: Beep Room Switcher -->
                 <div class="auth-cmd-card">
                     <div class="cmd-header-row">
-                        <span class="cmd-badge">📡 In-Game Beep Command</span>
+                        <span class="cmd-badge" data-i18n="auth_beep_badge">📡 In-Game Beep Command</span>
                         <span class="cmd-syntax-tag">join &lt;room&gt;</span>
                     </div>
-                    <p class="cmd-desc">Send a beep to Nava (#258115) to command the bot to switch rooms. Format: <code>join &lt;Room Name&gt;</code> or <code>join Room|password</code>.</p>
+                    <p class="cmd-desc" data-i18n="auth_beep_desc">Send a beep to Nava (#258115) to command the bot to switch rooms. Format: join &lt;Room Name&gt; or join Room|password.</p>
                     
                     <!-- Quick Switch Room Form from Web -->
                     <form id="form-quick-switch-room" class="quick-room-form">
                         <div class="quick-room-inputs">
-                            <input type="text" id="input-quick-room-name" placeholder="Room Name..." required autocomplete="off">
-                            <input type="text" id="input-quick-room-pass" placeholder="Password (optional)" autocomplete="off">
+                            <input type="text" id="input-quick-room-name" placeholder="Room Name..." data-i18n-placeholder="placeholder_quick_room" required autocomplete="off">
+                            <input type="text" id="input-quick-room-pass" placeholder="Password (optional)" data-i18n-placeholder="placeholder_quick_pass" autocomplete="off">
                         </div>
                         <button type="submit" class="btn btn-sm btn-accent">
-                            <span>🚪</span> Switch Room
+                            <span>🚪</span> <span data-i18n="btn_switch_room">Switch Room</span>
                         </button>
                     </form>
                 </div>
@@ -56,16 +56,16 @@
                 <!-- Command 2: Whisper Admin Menu -->
                 <div class="auth-cmd-card">
                     <div class="cmd-header-row">
-                        <span class="cmd-badge">🔒 Whisper Command</span>
+                        <span class="cmd-badge" data-i18n="auth_whisper_badge">🔒 Whisper Command</span>
                         <span class="cmd-syntax-tag">!adminmenu</span>
                     </div>
-                    <p class="cmd-desc">Whisper <code>!adminmenu</code> to the bot in-game to view private room administration options.</p>
+                    <p class="cmd-desc" data-i18n="auth_whisper_desc">Whisper !adminmenu to the bot in-game to view private room administration options.</p>
                 </div>
 
                 <!-- Command 3: Room Administration via Whisper -->
                 <div class="auth-cmd-card">
                     <div class="cmd-header-row">
-                        <span class="cmd-badge">👑 Room Management Whispers</span>
+                        <span class="cmd-badge" data-i18n="auth_mgmt_badge">👑 Room Management Whispers</span>
                     </div>
                     <div class="cmd-code-block">
                         <code>!admin &lt;id&gt;</code> | <code>!deladmin &lt;id&gt;</code> | <code>!adminlist</code><br>
@@ -73,15 +73,15 @@
                         <code>!ban &lt;id&gt;</code> | <code>!unban &lt;id&gt;</code> | <code>!banlist</code><br>
                         <code>!kick &lt;id&gt;</code>
                     </div>
-                    <p class="cmd-desc">Manage room administrators, whitelist, banlist, and kick members directly via private whisper.</p>
+                    <p class="cmd-desc" data-i18n="auth_mgmt_desc">Manage room administrators, whitelist, banlist, and kick members directly via private whisper.</p>
                 </div>
 
                 <!-- Privilege 4: Immunity & Full Web Control -->
                 <div class="auth-cmd-card">
                     <div class="cmd-header-row">
-                        <span class="cmd-badge">🛡️ Privileges & Immunity</span>
+                        <span class="cmd-badge" data-i18n="auth_priv_badge">🛡️ Privileges & Immunity</span>
                     </div>
-                    <p class="cmd-desc">Authorized Members have full immunity from bot moderation actions and unrestricted access to all Web Dashboard controls.</p>
+                    <p class="cmd-desc" data-i18n="auth_priv_desc">Authorized Members have full immunity from bot moderation actions and unrestricted access to all Web Dashboard controls.</p>
                 </div>
             </div>
         </div>

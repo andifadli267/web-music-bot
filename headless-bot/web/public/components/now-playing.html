@@ -5,7 +5,7 @@
             <span class="wave-icon">
                 <i></i><i></i><i></i><i></i><i></i>
             </span>
-            <span>NOW PLAYING</span>
+            <span data-i18n="now_playing_tag">NOW PLAYING</span>
         </div>
         <div id="source-badge" class="badge badge-source">YouTube</div>
     </div>
@@ -23,13 +23,13 @@
 
         <!-- Track Information -->
         <div class="track-details">
-            <h2 id="track-title" class="track-title">No music currently playing</h2>
-            <p id="track-subtitle" class="track-subtitle">Use controls below or type !play in room chat</p>
+            <h2 id="track-title" class="track-title" data-i18n="no_music_title">No music currently playing</h2>
+            <p id="track-subtitle" class="track-subtitle" data-i18n="no_music_sub">Use controls below or type !play in room chat</p>
 
             <!-- Requester Information -->
             <div class="requester-box" id="requester-box">
                 <span class="req-icon">👤</span>
-                <span class="req-label">Requested by:</span>
+                <span class="req-label" data-i18n="req_by_label">Requested by:</span>
                 <strong id="requester-name" class="req-name">-</strong>
             </div>
 
@@ -49,9 +49,9 @@
                 <audio id="web-audio" preload="none"></audio>
                 <button id="btn-listen-web" class="btn-listen">
                     <span id="listen-icon">🔊</span>
-                    <span id="listen-text">Listen in Browser</span>
+                    <span id="listen-text" data-i18n="listen_browser">Listen in Browser</span>
                 </button>
-                <span class="web-player-hint">Synchronized with in-game room audio</span>
+                <span class="web-player-hint" data-i18n="web_player_hint">Synchronized with in-game room audio</span>
             </div>
         </div>
     </div>

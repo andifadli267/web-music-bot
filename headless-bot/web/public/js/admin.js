@@ -17,7 +17,7 @@ function updateAdminPanels(data) {
                 const isBot = id === botMemberNumber;
                 const removeBtn = isBot
                     ? ""
-                    : `<button class="member-remove-btn" title="Remove Admin" onclick="handleRemoveAdmin(${id})">✕</button>`;
+                    : `<button class="member-remove-btn" title="${t('btn_remove')}" onclick="handleRemoveAdmin(${id})">✕</button>`;
                 return `
                     <span class="member-item-badge">
                         <span>👑 #${id}</span>
@@ -26,7 +26,7 @@ function updateAdminPanels(data) {
                 `;
             }).join("");
         } else {
-            adminsListEl.innerHTML = `<span class="empty-hint">No administrators registered.</span>`;
+            adminsListEl.innerHTML = `<span class="empty-hint">${t('admin_list_empty')}</span>`;
         }
     }
 
@@ -38,11 +38,11 @@ function updateAdminPanels(data) {
             wlListEl.innerHTML = whitelist.map(id => `
                 <span class="member-item-badge">
                     <span>📜 #${id}</span>
-                    <button class="member-remove-btn" title="Remove from Whitelist" onclick="handleRemoveWhitelist(${id})">✕</button>
+                    <button class="member-remove-btn" title="${t('btn_remove')}" onclick="handleRemoveWhitelist(${id})">✕</button>
                 </span>
             `).join("");
         } else {
-            wlListEl.innerHTML = `<span class="empty-hint">Whitelist is empty (public access open).</span>`;
+            wlListEl.innerHTML = `<span class="empty-hint">${t('wl_list_empty')}</span>`;
         }
     }
 
@@ -54,18 +54,18 @@ function updateAdminPanels(data) {
             banListEl.innerHTML = ban.map(id => `
                 <span class="member-item-badge">
                     <span>🚫 #${id}</span>
-                    <button class="member-remove-btn" title="Unban Member" onclick="handleRemoveBan(${id})">✕</button>
+                    <button class="member-remove-btn" title="${t('btn_remove')}" onclick="handleRemoveBan(${id})">✕</button>
                 </span>
             `).join("");
         } else {
-            banListEl.innerHTML = `<span class="empty-hint">No banned members.</span>`;
+            banListEl.innerHTML = `<span class="empty-hint">${t('ban_list_empty')}</span>`;
         }
     }
 }
 
 // Global removal handlers for room admin elements
 window.handleRemoveAdmin = function(memberNumber) {
-    if (!confirm(`Remove Member #${memberNumber} from room administrators?`)) return;
+    if (!confirm(t("confirm_remove_admin", { id: memberNumber }))) return;
     sendBotAction("admin", { subAction: "removeAdmin", memberNumber });
 };
 
@@ -85,7 +85,8 @@ function updateAuthorizedMembers(data) {
 
     const authMembers = Array.isArray(data.authorizedMembers) ? data.authorizedMembers : [];
     if (countBadge) {
-        countBadge.textContent = `${authMembers.length} ${authMembers.length === 1 ? "Member" : "Members"}`;
+        const suffix = authMembers.length === 1 ? "Member" : "Members";
+        countBadge.textContent = `${authMembers.length} ${suffix}`;
     }
 
     if (authMembers.length > 0) {
@@ -98,21 +99,21 @@ function updateAuthorizedMembers(data) {
                         <span class="auth-pill-name">(${escapeHtml(m.name || 'Member')})</span>
                     </div>
                     <div class="auth-pill-right">
-                        <button class="auth-remove-btn" title="Remove Authorized Member from Bot and Website" onclick="handleRemoveAuthMember(${m.memberNumber})">
-                            <span>🗑️</span> Remove
+                        <button class="auth-remove-btn" title="${t('btn_remove')}" onclick="handleRemoveAuthMember(${m.memberNumber})">
+                            <span>🗑️</span> ${t('btn_remove')}
                         </button>
                     </div>
                 </div>
             `;
         }).join("");
     } else {
-        listEl.innerHTML = `<span class="empty-hint">No authorized members registered. Add a member number above.</span>`;
+        listEl.innerHTML = `<span class="empty-hint">${t('auth_empty_hint')}</span>`;
     }
 }
 
 // Global removal handler for authorized members
 window.handleRemoveAuthMember = function(memberNumber) {
-    if (!confirm(`Remove Member #${memberNumber} from bot authorized members?`)) return;
+    if (!confirm(t("confirm_remove_auth", { id: memberNumber }))) return;
     sendBotAction("authorizedMember", { subAction: "remove", memberNumber });
 };
 
