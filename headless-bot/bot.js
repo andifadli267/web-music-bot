@@ -26,6 +26,7 @@ const { registerRoomEvents } = require("./handlers/events");
 const { getBotStatus, handleWebAction } = require("./handlers/webActions");
 const { startWebServer, stopWebServer, notifyWebUpdate } = require("./web/server");
 const { handleFollowQueryResult } = require("./services/follower");
+const { setNotifyCallback: setChatNotify } = require("./services/chatLogger");
 
 const botStartTime = Date.now();
 
@@ -103,6 +104,8 @@ async function startBot() {
         () => getBotStatus(state, botStartTime),
         (data) => handleWebAction(getContext(state.currentSocket), state, data)
     );
+
+    setChatNotify(notifyWebUpdate);
 
     // Establish Socket Connection to Game Server
     const socket = io(CONFIG.serverUrl, {

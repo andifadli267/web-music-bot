@@ -121,6 +121,74 @@ function updateDashboard(data) {
 
     // 6. Update Authorized Members Panel
     updateAuthorizedMembers(data);
+
+    // 7. Update Room Chat Log
+    updateChatLog(data);
+}
+
+function formatTimeAgo(timestamp) {
+    const diff = Math.floor((Date.now() - timestamp) / 1000);
+    if (diff < 60) return typeof t === "function" ? t("chatlog_time_now") : "just now";
+    const mins = Math.floor(diff / 60);
+    return typeof t === "function" ? t("chatlog_time_min", { n: mins }) : `${mins}m ago`;
+}
+
+let prevChatLogLength = 0;
+
+function updateChatLog(data) {
+    const container = document.getElementById("chatlog-messages");
+    if (!container) return;
+
+    const messages = Array.isArray(data.chatLog) ? data.chatLog : [];
+
+    if (messages.length === 0) {
+        const emptyTitle = typeof t === "function" ? t("chatlog_empty_title") : "No Conversations Yet";
+        const emptyDesc = typeof t === "function" ? t("chatlog_empty_desc") : "Messages from the room will appear here in real time.";
+        container.innerHTML = `
+            <div class="chatlog-empty">
+                <div class="empty-icon">💤</div>
+                <h3>${emptyTitle}</h3>
+                <p>${emptyDesc}</p>
+            </div>
+        `;
+        prevChatLogLength = 0;
+        return;
+    }
+
+    const botLabel = typeof t === "function" ? t("chatlog_bot_label") : "Bot";
+    const whisperLabel = typeof t === "function" ? t("chatlog_whisper_label") : "whisper";
+    const emoteLabel = typeof t === "function" ? t("chatlog_emote_label") : "emote";
+
+    container.innerHTML = messages.map(msg => {
+        const timeStr = formatTimeAgo(msg.timestamp);
+        const isBot = msg.isBot;
+        const msgType = (msg.type || "Chat").toLowerCase();
+
+        let typeBadge = "";
+        if (msgType === "whisper") {
+            typeBadge = `<span class="chatlog-type-badge type-whisper">${whisperLabel}</span>`;
+        } else if (msgType === "emote") {
+            typeBadge = `<span class="chatlog-type-badge type-emote">${emoteLabel}</span>`;
+        }
+
+        const senderClass = isBot ? "chatlog-sender-bot" : "chatlog-sender";
+        const botTag = isBot ? `<span class="chatlog-bot-tag">${botLabel}</span>` : "";
+        const rowClass = `chatlog-row${isBot ? " chatlog-row-bot" : ""}`;
+
+        return `<div class="${rowClass}">
+            <div class="chatlog-meta">
+                <span class="${senderClass}">${botTag}${escapeHtml(msg.senderName)}</span>
+                ${typeBadge}
+                <span class="chatlog-time">${timeStr}</span>
+            </div>
+            <div class="chatlog-content">${escapeHtml(msg.content)}</div>
+        </div>`;
+    }).join("");
+
+    if (messages.length > prevChatLogLength) {
+        container.scrollTop = container.scrollHeight;
+    }
+    prevChatLogLength = messages.length;
 }
 
 // Global callback for i18n re-rendering

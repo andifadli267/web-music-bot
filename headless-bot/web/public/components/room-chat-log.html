@@ -1,0 +1,19 @@
+<!-- Room Chat Log Card -->
+<section class="card room-chatlog-card">
+    <div class="card-header">
+        <div class="header-tag">
+            <span>📜</span>
+            <span data-i18n="chatlog_tag">ROOM CHAT LOG</span>
+        </div>
+        <span class="badge badge-accent" data-i18n="chatlog_live_badge">Live Feed</span>
+    </div>
+
+    <div class="chatlog-body" id="chatlog-body">
+        <div class="chatlog-messages" id="chatlog-messages" role="log" aria-live="polite" aria-label="Room chat messages">
+            <!-- Empty state rendered by JS -->
+        </div>
+        <div class="chatlog-footer">
+            <span class="chatlog-ttl-hint" data-i18n="chatlog_ttl_hint">Messages disappear after 15 minutes</span>
+        </div>
+    </div>
+</section>

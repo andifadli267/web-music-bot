@@ -146,7 +146,19 @@ const TRANSLATIONS = {
         confirm_remove_auth: "Remove Member #{id} from bot authorized members?",
         confirm_kick: "Kick Member #{id} from the room?",
         confirm_stop_music: "Stop music playback in the room?",
-        confirm_clear_queue: "Clear the entire music queue?"
+        confirm_clear_queue: "Clear the entire music queue?",
+
+        // Room Chat Log
+        chatlog_tag: "ROOM CHAT LOG",
+        chatlog_live_badge: "Live Feed",
+        chatlog_ttl_hint: "Messages disappear after 15 minutes",
+        chatlog_empty_title: "No Conversations Yet",
+        chatlog_empty_desc: "Messages from the room will appear here in real time.",
+        chatlog_whisper_label: "whisper",
+        chatlog_emote_label: "emote",
+        chatlog_bot_label: "Bot",
+        chatlog_time_now: "just now",
+        chatlog_time_min: "{n}m ago",
     },
 
     id: {
@@ -290,7 +302,19 @@ const TRANSLATIONS = {
         confirm_remove_auth: "Hapus Anggota #{id} dari anggota resmi bot?",
         confirm_kick: "Keluarkan Anggota #{id} dari ruangan?",
         confirm_stop_music: "Hentikan pemutaran musik di dalam ruangan?",
-        confirm_clear_queue: "Kosongkan seluruh antrean musik?"
+        confirm_clear_queue: "Kosongkan seluruh antrean musik?",
+
+        // Room Chat Log
+        chatlog_tag: "LOG OBROLAN RUANGAN",
+        chatlog_live_badge: "Siaran Langsung",
+        chatlog_ttl_hint: "Pesan akan hilang setelah 15 menit",
+        chatlog_empty_title: "Belum Ada Percakapan",
+        chatlog_empty_desc: "Pesan dari ruangan akan muncul di sini secara langsung.",
+        chatlog_whisper_label: "bisikan",
+        chatlog_emote_label: "emote",
+        chatlog_bot_label: "Bot",
+        chatlog_time_now: "baru saja",
+        chatlog_time_min: "{n} mnt lalu",
     },
 
     it: {
@@ -434,7 +458,19 @@ const TRANSLATIONS = {
         confirm_remove_auth: "Rimuovere il Membro #{id} dai membri autorizzati del bot?",
         confirm_kick: "Espellere il Membro #{id} dalla stanza?",
         confirm_stop_music: "Fermare la riproduzione musicale nella stanza?",
-        confirm_clear_queue: "Cancellare l'intera coda musicale?"
+        confirm_clear_queue: "Cancellare l'intera coda musicale?",
+
+        // Room Chat Log
+        chatlog_tag: "LOG CHAT DELLA STANZA",
+        chatlog_live_badge: "Feed in Diretta",
+        chatlog_ttl_hint: "I messaggi scompaiono dopo 15 minuti",
+        chatlog_empty_title: "Nessuna Conversazione",
+        chatlog_empty_desc: "I messaggi dalla stanza appariranno qui in tempo reale.",
+        chatlog_whisper_label: "sussurro",
+        chatlog_emote_label: "emote",
+        chatlog_bot_label: "Bot",
+        chatlog_time_now: "ora",
+        chatlog_time_min: "{n}min fa",
     }
 };
 

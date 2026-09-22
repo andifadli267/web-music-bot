@@ -19,6 +19,7 @@ const {
     backToDefaultRoom,
     handleFollowMemberLeave,
 } = require("../services/follower");
+const { addChatMessage } = require("../services/chatLogger");
 
 function registerRoomEvents(socket, context, state) {
     const {
@@ -241,6 +242,14 @@ function registerRoomEvents(socket, context, state) {
         const isInternalAddon = /^(ECHO_|PCM_|CG_|BCEMsg|BCXMsg|KIKILINK|Liko)/.test(content);
         if (!isInternalAddon) {
             console.log(`💬 [${getCharacterName(sender)} (#${sender})]: "${content}"`);
+
+            addChatMessage({
+                sender: sender,
+                senderName: getCharacterName(sender),
+                content: content,
+                type: data.Type || "Chat",
+                isBot: Boolean(state.botPlayer && sender === state.botPlayer.MemberNumber),
+            });
         }
 
         // If bot is paused (e.g. following mistress), public bot commands (!help, !play, etc.) are suspended

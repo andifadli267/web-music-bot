@@ -5,6 +5,7 @@
  */
 
 const { CONFIG, MASTER_ADMINS, STATIONS, addAuthorizedMember, removeAuthorizedMember } = require("../config");
+const { getRecentMessages } = require("../services/chatLogger");
 const {
     getQueueState,
     playSong,
@@ -79,6 +80,7 @@ function getBotStatus(state, botStartTime) {
         queue: queueState.songQueue || [],
         stations: stationList,
         authorizedMembers: authMembers,
+        chatLog: getRecentMessages(),
     };
 }
 
@@ -127,6 +129,16 @@ async function handleWebAction(context, state, data) {
                     Type: "Chat",
                 });
             }
+
+            const { addChatMessage } = require("../services/chatLogger");
+            addChatMessage({
+                sender: botPlayer ? botPlayer.MemberNumber : 0,
+                senderName: botPlayer ? (botPlayer.Name || CONFIG.accountName) : CONFIG.accountName,
+                content: msg,
+                type: data.isEmote ? "Emote" : "Chat",
+                isBot: true,
+            });
+
             return { success: true, message: "Message successfully sent to the room." };
         }
         case "expression": {

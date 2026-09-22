@@ -791,3 +791,164 @@
     border-color: var(--primary);
     box-shadow: var(--focus-ring);
 }
+
+/* ========================================================
+   ROOM CHAT LOG CARD
+   ======================================================== */
+.room-chatlog-card .chatlog-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.chatlog-messages {
+    max-height: 340px;
+    overflow-y: auto;
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    scroll-behavior: smooth;
+}
+
+.chatlog-row {
+    padding: 8px 10px;
+    border-radius: 6px;
+    border-left: 3px solid var(--border-color);
+    background: var(--surface-alt, var(--bg-surface));
+    transition: background 0.15s ease;
+}
+
+.chatlog-row:hover {
+    background: var(--hover-bg, rgba(255,255,255,0.04));
+}
+
+.chatlog-row-bot {
+    border-left-color: var(--accent);
+    background: rgba(var(--accent-rgb, 99,102,241), 0.06);
+}
+
+.chatlog-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 2px;
+}
+
+.chatlog-sender,
+.chatlog-sender-bot {
+    font-weight: 600;
+    font-size: 0.82rem;
+    color: var(--text-main);
+}
+
+.chatlog-sender-bot {
+    color: var(--accent);
+}
+
+.chatlog-bot-tag {
+    display: inline-block;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    background: var(--accent);
+    color: #fff;
+    padding: 1px 5px;
+    border-radius: 3px;
+    margin-right: 4px;
+    vertical-align: middle;
+}
+
+.chatlog-type-badge {
+    font-size: 0.68rem;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 3px;
+    text-transform: lowercase;
+}
+
+.type-whisper {
+    background: rgba(168, 85, 247, 0.15);
+    color: #a855f7;
+}
+
+.type-emote {
+    background: rgba(234, 179, 8, 0.15);
+    color: #ca8a04;
+}
+
+[data-theme="light"] .type-whisper {
+    background: rgba(168, 85, 247, 0.12);
+    color: #7c3aed;
+}
+
+[data-theme="light"] .type-emote {
+    background: rgba(234, 179, 8, 0.12);
+    color: #a16207;
+}
+
+.chatlog-time {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin-left: auto;
+    white-space: nowrap;
+}
+
+.chatlog-content {
+    font-size: 0.84rem;
+    line-height: 1.45;
+    color: var(--text-secondary, var(--text-main));
+    word-break: break-word;
+}
+
+.chatlog-footer {
+    padding: 8px 16px;
+    border-top: 1px solid var(--border-color);
+    text-align: center;
+}
+
+.chatlog-ttl-hint {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.chatlog-empty {
+    text-align: center;
+    padding: 32px 16px;
+}
+
+.chatlog-empty .empty-icon {
+    font-size: 2rem;
+    margin-bottom: 8px;
+}
+
+.chatlog-empty h3 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-main);
+    margin: 0 0 6px;
+}
+
+.chatlog-empty p {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    margin: 0;
+}
+
+@media (max-width: 640px) {
+    .chatlog-messages {
+        max-height: 260px;
+        padding: 8px 10px;
+    }
+
+    .chatlog-row {
+        padding: 6px 8px;
+    }
+
+    .chatlog-meta {
+        gap: 4px;
+    }
+}
