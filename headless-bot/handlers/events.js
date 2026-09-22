@@ -243,13 +243,18 @@ function registerRoomEvents(socket, context, state) {
         if (!isInternalAddon) {
             console.log(`💬 [${getCharacterName(sender)} (#${sender})]: "${content}"`);
 
-            addChatMessage({
-                sender: sender,
-                senderName: getCharacterName(sender),
-                content: content,
-                type: data.Type || "Chat",
-                isBot: Boolean(state.botPlayer && sender === state.botPlayer.MemberNumber),
-            });
+            const isConversation = !data.Type || data.Type === "Chat" || data.Type === "Normal" || data.Type === "Emote";
+            const isSystemContent = /^(ServerEnter|ServerLeave|ServerDisconnect|ServerBan|ServerKick|ChatRoomFriendRequest|ChatRoomChat)/.test(content);
+
+            if (isConversation && !isSystemContent) {
+                addChatMessage({
+                    sender: sender,
+                    senderName: getCharacterName(sender),
+                    content: content,
+                    type: data.Type || "Chat",
+                    isBot: Boolean(state.botPlayer && sender === state.botPlayer.MemberNumber),
+                });
+            }
         }
 
         // If bot is paused (e.g. following mistress), public bot commands (!help, !play, etc.) are suspended
