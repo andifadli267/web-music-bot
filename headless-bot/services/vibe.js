@@ -30,6 +30,16 @@ function sendWhisper(socket, targetMemberNumber, msg) {
         Type: "Whisper",
         Target: Number(targetMemberNumber),
     });
+    try {
+        const { addChatMessage } = require("./chatLogger");
+        addChatMessage({
+            sender: 0,
+            senderName: "Nava",
+            content: `whisper to #${targetMemberNumber}: ${msg}`,
+            type: "Whisper",
+            isBot: true,
+        });
+    } catch (e) {}
 }
 
 function changeFaceExpression(socket, group, expression) {

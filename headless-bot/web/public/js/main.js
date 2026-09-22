@@ -158,6 +158,8 @@ function updateChatLog(data) {
     const botLabel = typeof t === "function" ? t("chatlog_bot_label") : "Bot";
     const whisperLabel = typeof t === "function" ? t("chatlog_whisper_label") : "whisper";
     const emoteLabel = typeof t === "function" ? t("chatlog_emote_label") : "emote";
+    const actionLabel = typeof t === "function" ? t("chatlog_action_label") : "action";
+    const systemLabel = typeof t === "function" ? t("chatlog_system_label") : "system";
 
     container.innerHTML = messages.map(msg => {
         const timeStr = formatTimeAgo(msg.timestamp);
@@ -169,11 +171,22 @@ function updateChatLog(data) {
             typeBadge = `<span class="chatlog-type-badge type-whisper">${whisperLabel}</span>`;
         } else if (msgType === "emote") {
             typeBadge = `<span class="chatlog-type-badge type-emote">${emoteLabel}</span>`;
+        } else if (msgType === "action") {
+            typeBadge = `<span class="chatlog-type-badge type-action">${actionLabel}</span>`;
+        } else if (msgType === "system") {
+            typeBadge = `<span class="chatlog-type-badge type-system">${systemLabel}</span>`;
         }
 
-        const senderClass = isBot ? "chatlog-sender-bot" : "chatlog-sender";
+        let senderClass = "chatlog-sender";
+        if (isBot) senderClass = "chatlog-sender-bot";
+        else if (msgType === "system") senderClass = "chatlog-sender-system";
+
         const botTag = isBot ? `<span class="chatlog-bot-tag">${botLabel}</span>` : "";
-        const rowClass = `chatlog-row${isBot ? " chatlog-row-bot" : ""}`;
+        let rowClass = "chatlog-row";
+        if (isBot) rowClass += " chatlog-row-bot";
+        if (msgType === "whisper") rowClass += " chatlog-row-whisper";
+        else if (msgType === "action") rowClass += " chatlog-row-action";
+        else if (msgType === "system") rowClass += " chatlog-row-system";
 
         return `<div class="${rowClass}">
             <div class="chatlog-meta">

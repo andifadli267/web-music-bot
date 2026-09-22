@@ -76,6 +76,14 @@ function registerRoomEvents(socket, context, state) {
             }
         });
 
+        addChatMessage({
+            sender: state.botPlayer ? state.botPlayer.MemberNumber : 0,
+            senderName: "System",
+            content: `📍 Bot character is in room "${data.Name}"`,
+            type: "System",
+            isBot: true,
+        });
+
         if (typeof notifyWebRefresh === "function") notifyWebRefresh();
         if (!state.isPaused) {
             startVibeAnimation(socket, () => state.isInRoom);
@@ -180,7 +188,40 @@ function registerRoomEvents(socket, context, state) {
                 }
                 console.log(`👋 [ServerLeave Action] Member #${num} left the room.`);
                 handleFollowMemberLeave(context, state, num);
+
+                const pName = getCharacterName(num);
+                let actionDesc = "left the room";
+                if (content === "ServerDisconnect") actionDesc = "disconnected from the room";
+                else if (content === "ServerBan") actionDesc = "was banned from the room";
+                else if (content === "ServerKick") actionDesc = "was kicked from the room";
+
+                addChatMessage({
+                    sender: num,
+                    senderName: "System",
+                    content: `👋 ${pName} (#${num}) ${actionDesc}`,
+                    type: "System",
+                    isBot: Boolean(state.botPlayer && num === state.botPlayer.MemberNumber),
+                });
             }
+            if (typeof notifyWebRefresh === "function") notifyWebRefresh();
+            return;
+        }
+
+        // Handle ServerEnter action event
+        if (data.Type === "Action" && content === "ServerEnter") {
+            let enterNum = sender;
+            if (Array.isArray(data.Dictionary)) {
+                const srcObj = data.Dictionary.find(d => d && (d.SourceMemberNumber || d.MemberNumber));
+                if (srcObj) enterNum = srcObj.SourceMemberNumber || srcObj.MemberNumber;
+            }
+            const pName = getCharacterName(enterNum);
+            addChatMessage({
+                sender: enterNum,
+                senderName: "System",
+                content: `🚪 ${pName} (#${enterNum}) entered the room`,
+                type: "System",
+                isBot: Boolean(state.botPlayer && enterNum === state.botPlayer.MemberNumber),
+            });
             if (typeof notifyWebRefresh === "function") notifyWebRefresh();
             return;
         }
@@ -212,6 +253,14 @@ function registerRoomEvents(socket, context, state) {
         // Native BC in-room friend request
         if (content === "ChatRoomFriendRequestAdd") {
             const isForMe = !data.Target || (state.botPlayer && data.Target === state.botPlayer.MemberNumber);
+            addChatMessage({
+                sender: sender,
+                senderName: "System",
+                content: `🤝 ${getCharacterName(sender)} (#${sender}) sent a friend request`,
+                type: "System",
+                isBot: false,
+            });
+
             if (isForMe) {
                 console.log(`🤝 [Friend Request Received] Member #${sender} (${getCharacterName(sender)}) sent a friend request in room! Auto-accepting...`);
                 acceptFriendRequest({
@@ -228,9 +277,17 @@ function registerRoomEvents(socket, context, state) {
             }
         }
 
-        // Private Whisper (/w) to the bot - specifically handles Room Admin commands
+        // Private Whisper (/w) to the bot or in room
         if (data.Type === "Whisper") {
             const isForMe = !data.Target || (state.botPlayer && data.Target === state.botPlayer.MemberNumber);
+            addChatMessage({
+                sender: sender,
+                senderName: getCharacterName(sender),
+                content: content,
+                type: "Whisper",
+                isBot: Boolean(state.botPlayer && sender === state.botPlayer.MemberNumber),
+            });
+
             if (isForMe) {
                 console.log(`🔒 [Whisper from ${getCharacterName(sender)} (#${sender})]: "${content}"`);
                 handleAdminWhisper(context, content, sender);
@@ -243,18 +300,14 @@ function registerRoomEvents(socket, context, state) {
         if (!isInternalAddon) {
             console.log(`💬 [${getCharacterName(sender)} (#${sender})]: "${content}"`);
 
-            const isConversation = !data.Type || data.Type === "Chat" || data.Type === "Normal" || data.Type === "Emote";
-            const isSystemContent = /^(ServerEnter|ServerLeave|ServerDisconnect|ServerBan|ServerKick|ChatRoomFriendRequest|ChatRoomChat)/.test(content);
-
-            if (isConversation && !isSystemContent) {
-                addChatMessage({
-                    sender: sender,
-                    senderName: getCharacterName(sender),
-                    content: content,
-                    type: data.Type || "Chat",
-                    isBot: Boolean(state.botPlayer && sender === state.botPlayer.MemberNumber),
-                });
-            }
+            // Capture all visible conversations: Chat, Emote, Action (translations, in-room actions)
+            addChatMessage({
+                sender: sender,
+                senderName: getCharacterName(sender),
+                content: content,
+                type: data.Type || "Chat",
+                isBot: Boolean(state.botPlayer && sender === state.botPlayer.MemberNumber),
+            });
         }
 
         // If bot is paused (e.g. following mistress), public bot commands (!help, !play, etc.) are suspended
