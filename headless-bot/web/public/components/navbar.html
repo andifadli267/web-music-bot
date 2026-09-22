@@ -20,12 +20,35 @@
             <span id="bot-status-indicator" class="status-indicator"></span>
             <span id="bot-status-text" data-i18n="status_online">Online</span>
         </div>
-        <div class="lang-select-wrapper">
-            <select id="lang-select" class="lang-select" aria-label="Select Interface Language" data-i18n-title="lang_select_title" data-i18n-aria="lang_select_title">
-                <option value="en">🇬🇧 EN</option>
-                <option value="id">🇮🇩 ID</option>
-                <option value="it">🇮🇹 IT</option>
-            </select>
+        <div class="lang-dropdown-wrapper">
+            <button id="lang-menu-btn" class="lang-menu-btn" aria-haspopup="listbox" aria-expanded="false" aria-label="Select Interface Language" data-i18n-title="lang_select_title" data-i18n-aria="lang_select_title">
+                <span id="current-lang-flag" class="current-lang-flag"></span>
+                <span id="current-lang-code" class="current-lang-code">EN</span>
+                <span class="dropdown-chevron">▾</span>
+            </button>
+            <ul id="lang-menu-list" class="lang-menu-list hidden" role="listbox" aria-label="Language options">
+                <li class="lang-option" role="option" data-lang="en" tabindex="0">
+                    <span class="flag-wrapper">
+                        <svg class="flag-icon" viewBox="0 0 60 30" width="22" height="15" aria-hidden="true"><clipPath id="uk-clip-s"><path d="M0,0 v30 h60 v-30 z"/></clipPath><clipPath id="uk-clip-t"><path d="M30,15 h30 v15 z v15 h-30 z h-30 v-15 z v-15 h30 z"/></clipPath><g clip-path="url(#uk-clip-s)"><path d="M0,0 v30 h60 v-30 z" fill="#012169"/><path d="M0,0 L60,30 M60,0 L0,30" stroke="#fff" stroke-width="6"/><path d="M0,0 L60,30 M60,0 L0,30" clip-path="url(#uk-clip-t)" stroke="#C8102E" stroke-width="4"/><path d="M30,0 v30 M0,15 h60" stroke="#fff" stroke-width="10"/><path d="M30,0 v30 M0,15 h60" stroke="#C8102E" stroke-width="6"/></g></svg>
+                    </span>
+                    <span class="lang-name">English</span>
+                    <span class="lang-code-pill">EN</span>
+                </li>
+                <li class="lang-option" role="option" data-lang="id" tabindex="0">
+                    <span class="flag-wrapper">
+                        <svg class="flag-icon" viewBox="0 0 640 480" width="22" height="15" aria-hidden="true"><rect width="640" height="240" fill="#e11d48"/><rect y="240" width="640" height="240" fill="#ffffff"/></svg>
+                    </span>
+                    <span class="lang-name">Bahasa Indonesia</span>
+                    <span class="lang-code-pill">ID</span>
+                </li>
+                <li class="lang-option" role="option" data-lang="it" tabindex="0">
+                    <span class="flag-wrapper">
+                        <svg class="flag-icon" viewBox="0 0 3 2" width="22" height="15" aria-hidden="true"><rect width="1" height="2" fill="#009246"/><rect x="1" width="1" height="2" fill="#ffffff"/><rect x="2" width="1" height="2" fill="#ce2b37"/></svg>
+                    </span>
+                    <span class="lang-name">Italiano</span>
+                    <span class="lang-code-pill">IT</span>
+                </li>
+            </ul>
         </div>
         <button id="theme-toggle" class="theme-toggle-btn" aria-label="Toggle light or dark theme" data-i18n-title="theme_toggle_title" data-i18n-aria="theme_toggle_title">
             <span class="theme-icon" id="theme-icon">🌙</span>

@@ -438,6 +438,12 @@ const TRANSLATIONS = {
     }
 };
 
+const FLAG_SVGS = {
+    en: `<svg class="flag-icon" viewBox="0 0 60 30" width="22" height="15" aria-hidden="true"><clipPath id="uk-clip-s"><path d="M0,0 v30 h60 v-30 z"/></clipPath><clipPath id="uk-clip-t"><path d="M30,15 h30 v15 z v15 h-30 z h-30 v-15 z v-15 h30 z"/></clipPath><g clip-path="url(#uk-clip-s)"><path d="M0,0 v30 h60 v-30 z" fill="#012169"/><path d="M0,0 L60,30 M60,0 L0,30" stroke="#fff" stroke-width="6"/><path d="M0,0 L60,30 M60,0 L0,30" clip-path="url(#uk-clip-t)" stroke="#C8102E" stroke-width="4"/><path d="M30,0 v30 M0,15 h60" stroke="#fff" stroke-width="10"/><path d="M30,0 v30 M0,15 h60" stroke="#C8102E" stroke-width="6"/></g></svg>`,
+    id: `<svg class="flag-icon" viewBox="0 0 640 480" width="22" height="15" aria-hidden="true"><rect width="640" height="240" fill="#e11d48"/><rect y="240" width="640" height="240" fill="#ffffff"/></svg>`,
+    it: `<svg class="flag-icon" viewBox="0 0 3 2" width="22" height="15" aria-hidden="true"><rect width="1" height="2" fill="#009246"/><rect x="1" width="1" height="2" fill="#ffffff"/><rect x="2" width="1" height="2" fill="#ce2b37"/></svg>`
+};
+
 let currentLanguage = "en";
 
 /**
@@ -494,7 +500,23 @@ function setLanguage(lang) {
         }
     });
 
-    // Update select element value if present
+    // 5. Update Custom Flag Dropdown UI
+    const currentFlagEl = document.getElementById("current-lang-flag");
+    const currentCodeEl = document.getElementById("current-lang-code");
+    if (currentFlagEl && FLAG_SVGS[lang]) {
+        currentFlagEl.innerHTML = FLAG_SVGS[lang];
+    }
+    if (currentCodeEl) {
+        currentCodeEl.textContent = lang.toUpperCase();
+    }
+
+    document.querySelectorAll(".lang-option").forEach(opt => {
+        const optLang = opt.getAttribute("data-lang");
+        const isSelected = optLang === lang;
+        opt.setAttribute("aria-selected", isSelected ? "true" : "false");
+    });
+
+    // Fallback select element if present
     const langSelect = document.getElementById("lang-select");
     if (langSelect && langSelect.value !== lang) {
         langSelect.value = lang;
@@ -526,6 +548,89 @@ function initI18n() {
 
     setLanguage(currentLanguage);
 
+    // Custom Flag Dropdown Controller
+    const menuBtn = document.getElementById("lang-menu-btn");
+    const menuList = document.getElementById("lang-menu-list");
+    const options = document.querySelectorAll(".lang-option");
+
+    if (menuBtn && menuList) {
+        // Toggle dropdown open/close
+        menuBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const isOpen = !menuList.classList.contains("hidden");
+            if (isOpen) {
+                closeLangMenu();
+            } else {
+                openLangMenu();
+            }
+        });
+
+        function openLangMenu() {
+            menuList.classList.remove("hidden");
+            menuBtn.setAttribute("aria-expanded", "true");
+            const selectedOpt = menuList.querySelector('.lang-option[aria-selected="true"]') || options[0];
+            if (selectedOpt) selectedOpt.focus();
+        }
+
+        function closeLangMenu() {
+            menuList.classList.add("hidden");
+            menuBtn.setAttribute("aria-expanded", "false");
+        }
+
+        // Option selection handlers
+        options.forEach((opt, idx) => {
+            opt.addEventListener("click", (e) => {
+                e.stopPropagation();
+                const nextLang = opt.getAttribute("data-lang");
+                if (nextLang && nextLang !== currentLanguage) {
+                    setLanguage(nextLang);
+                    if (typeof showToast === "function") {
+                        showToast(t("toast_lang_switched"), "info");
+                    }
+                }
+                closeLangMenu();
+                menuBtn.focus();
+            });
+
+            opt.addEventListener("keydown", (e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    opt.click();
+                } else if (e.key === "ArrowDown") {
+                    e.preventDefault();
+                    const nextOpt = options[idx + 1] || options[0];
+                    if (nextOpt) nextOpt.focus();
+                } else if (e.key === "ArrowUp") {
+                    e.preventDefault();
+                    const prevOpt = options[idx - 1] || options[options.length - 1];
+                    if (prevOpt) prevOpt.focus();
+                } else if (e.key === "Escape") {
+                    e.preventDefault();
+                    closeLangMenu();
+                    menuBtn.focus();
+                }
+            });
+        });
+
+        // Close when clicking outside
+        document.addEventListener("click", (e) => {
+            if (!e.target.closest(".lang-dropdown-wrapper")) {
+                closeLangMenu();
+            }
+        });
+
+        // Close on Escape from button
+        menuBtn.addEventListener("keydown", (e) => {
+            if (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                openLangMenu();
+            } else if (e.key === "Escape") {
+                closeLangMenu();
+            }
+        });
+    }
+
+    // Legacy fallback select element if present
     const langSelect = document.getElementById("lang-select");
     if (langSelect) {
         langSelect.value = currentLanguage;
@@ -538,3 +643,4 @@ function initI18n() {
         });
     }
 }
+
