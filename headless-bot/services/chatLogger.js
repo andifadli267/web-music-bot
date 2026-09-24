@@ -12,12 +12,43 @@ let messageIdCounter = 0;
 let pruneTimer = null;
 let notifyCallback = null;
 
+function isInternalNoise(content, type) {
+    if (!content || typeof content !== "string") return true;
+    const str = content.trim();
+    if (!str) return true;
+
+    if (type === "Hidden" || type === "Status") return true;
+
+    // Exact internal engine signals, audio/mouth movements, or null strings
+    if (/^(null|undefined|Talk|ChatRoomChat|Action|Activity)$/i.test(str)) return true;
+
+    // Known mod/addon protocol prefixes or abbreviations
+    const modPattern = /^(AFC::|BCP(\b|::|_|Msg)|MPA(\b|::|_|Msg)|LSCG|bctMsg|BCT(\b|::|_|Msg)|BCX|BCE|ECHO_|PCM_|CG_|KIKILINK|Liko|FUSA|WA_|UT_|HQ_|KB_|BB_|BF_)/i;
+    if (modPattern.test(str)) return true;
+
+    // Raw JSON / dictionary objects used by addons
+    if ((str.startsWith("{") && str.endsWith("}")) || (str.startsWith("[{") && str.endsWith("}]"))) {
+        try {
+            JSON.parse(str);
+            return true;
+        } catch (e) {}
+    }
+
+    // Raw untranslated BC internal localization keys (e.g. ActionUseItem, ActivityTie, PoseStand, etc.)
+    if (/^(Action|Activity|Pose|Expression)[A-Za-z0-9_]+$/.test(str)) {
+        return true;
+    }
+
+    return false;
+}
+
 function setNotifyCallback(fn) {
     notifyCallback = fn;
 }
 
 function addChatMessage({ sender, senderName, content, type, isBot }) {
     if (!content || typeof content !== "string") return;
+    if (isInternalNoise(content, type)) return;
 
     messageIdCounter += 1;
     chatHistory.push({
@@ -77,5 +108,6 @@ module.exports = {
     setNotifyCallback,
     startAutoPrune,
     stopAutoPrune,
+    isInternalNoise,
 };
 

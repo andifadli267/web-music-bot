@@ -19,7 +19,7 @@ const {
     backToDefaultRoom,
     handleFollowMemberLeave,
 } = require("../services/follower");
-const { addChatMessage } = require("../services/chatLogger");
+const { addChatMessage, isInternalNoise } = require("../services/chatLogger");
 
 function registerRoomEvents(socket, context, state) {
     const {
@@ -280,13 +280,15 @@ function registerRoomEvents(socket, context, state) {
         // Private Whisper (/w) to the bot or in room
         if (data.Type === "Whisper") {
             const isForMe = !data.Target || (state.botPlayer && data.Target === state.botPlayer.MemberNumber);
-            addChatMessage({
-                sender: sender,
-                senderName: getCharacterName(sender),
-                content: content,
-                type: "Whisper",
-                isBot: Boolean(state.botPlayer && sender === state.botPlayer.MemberNumber),
-            });
+            if (!isInternalNoise(content, data)) {
+                addChatMessage({
+                    sender: sender,
+                    senderName: getCharacterName(sender),
+                    content: content,
+                    type: "Whisper",
+                    isBot: Boolean(state.botPlayer && sender === state.botPlayer.MemberNumber),
+                });
+            }
 
             if (isForMe) {
                 console.log(`🔒 [Whisper from ${getCharacterName(sender)} (#${sender})]: "${content}"`);
@@ -296,8 +298,7 @@ function registerRoomEvents(socket, context, state) {
             }
         }
 
-        const isInternalAddon = /^(ECHO_|PCM_|CG_|BCEMsg|BCXMsg|KIKILINK|Liko)/.test(content);
-        if (!isInternalAddon) {
+        if (!isInternalNoise(content, data)) {
             console.log(`💬 [${getCharacterName(sender)} (#${sender})]: "${content}"`);
 
             // Capture all visible conversations: Chat, Emote, Action (translations, in-room actions)
