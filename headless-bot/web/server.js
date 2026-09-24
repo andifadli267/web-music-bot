@@ -207,8 +207,13 @@ function startWebServer(port, getStatus, handleAction) {
 
     server.on("error", (err) => {
         if (err.code === "EADDRINUSE") {
-            console.warn(`⚠️ [Web Dashboard] Port ${port} is already in use. Retrying on port ${port + 1}...`);
-            startWebServer(port + 1, getStatus, handleAction);
+            console.warn(`⚠️ [Web Dashboard] Port ${port} is in use / TimeWait. Retrying on port ${port} in 2.5s...`);
+            setTimeout(() => {
+                if (serverInstance) {
+                    try { server.close(); } catch (e) {}
+                    server.listen(port);
+                }
+            }, 2500);
         } else {
             console.error("❌ [Web Dashboard Error]:", err.message);
         }
